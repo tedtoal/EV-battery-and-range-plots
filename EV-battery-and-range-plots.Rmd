@@ -1,0 +1,1938 @@
+---
+title: "EV Battery and Range Plots"
+output: html_document
+---
+
+Plot results of tests of an EV's range, plus many plot variations.
+
+--------------------------------------------------------------------------
+Copyright (C) 2024  Ted Toal
+
+This program is free software: you can redistribute it and/or modify 
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+The author, Ted Toal, can be contacted via email at ted@tedtoal.net
+--------------------------------------------------------------------------
+
+This file is opened and run from the app named RStudio. To install it, first install R, available from:
+        https://cran.r-project.org/mirrors.html         (pick one in your country, then find your system and latest version)
+Then, install the free version of RStudio, available from:
+        https://posit.co/download/rstudio-desktop/      (scroll down the page and find your system)
+
+To run this you can simply select "Run All" from the Run drop-down menu, but first make sure that you have set the first three variables immediately below as you want.
+
+The first code chunk here contains values to be set by the user to control the input directory and output characteristics.
+
+```{r paged.print=FALSE}
+
+# Set hard-coded RSOURCEPATH environment variable to directory used for this code's R include files, which should be a
+# subdirectory named "includeFiles" located within the directory that contains the "EV-battery-and-range-plots.Rmd" file.
+RSOURCEPATH = file.path("~", "Documents", "Tesla", "EV-battery-and-range-plots", "includeFiles")
+
+# Set this TRUE to produce plots using METRIC units, FALSE for imperial units.
+useMetricInPlots = FALSE
+
+# Set this TRUE to produce plots with COLORS, FALSE to produce black and white plots (including the inline plots below as well
+# as the plots in the PDF file produced at the end of this).
+useBWcolors = FALSE
+
+```
+
+The next code chunk contains the results of measurements that must be made, plus vehicle-related data and the directory and filename to be used for PDF file output.
+
+Review the following values and make changes as needed.
+
+To change this code to a different vehicle, edit the values in this and the following code chunk.
+
+```{r paged.print=FALSE}
+
+# Measured energy consumption at different speeds in both directions on some road. For units, see basicData_metric and
+# the unitsTable table below.
+# For "omitForApproximation", use F (FALSE) for all values unless there is one or two that seem to be outliers that you
+# would prefer be omitted when estimating an approximation, in which case use T (TRUE) for those.
+# My testing: north and south on Hwy 84 SSW of Sacramento CA near the deep water channel.
+basicData = list(
+    speed=                 c( 25,  30,  35,  40,  45,  50,  55,  60,  65,  70,  75,  80),
+    WhPerUnitDistance_dir1=c(160, 135, 180, 190, 200, 215, 230, 265, 280, 310, 355, 375), # Same dist units as speed
+    WhPerUnitDistance_dir2=c(140, 145, 150, 175, 175, 205, 200, 215, 230, 255, 295, 315), # Same dist units as speed
+    omitForApproximation=  c(  F,   T,   F,   F,   F,   F,   F,   F,   F,   F,   F,   F),
+    # Vehicle general description.
+    description="2018 Tesla Model 3 Long Range RWD",
+    # Output PDF directory.
+    pdfDirectory=file.path("~", "Documents", "Tesla", "EV-battery-and-range-plots"),
+    # Output PDF filename for all plots, excluding .pdf.
+    pdfAllPlotsFilename="TeslaRangeAndEnergyPlots",
+    # Output PDF filename for subset of plots, excluding .pdf.
+    pdfSomePlotsFilename="TeslaRangeAndElectCostPlots",
+    # Temperature at which power consumption was measured.
+    # This is an estimate, I forgot to record it, but it should be pretty close.
+    temperature=85,
+    # Elevation at which power consumption was measured.
+    elevation=0,
+    # Barometric pressure at which power consumption was measured, adjusted to sea-level (NOT barometer AT sea level).
+    # This is an estimate, I forgot to record it, but it should be pretty close.
+    barometer=29.92,
+    # Rated capacity of battery in EV under test, in KWh.
+    batteryRatedCapacity_KWh=75,
+    # Health (100% - degradation) of battery in EV under test, in percent.
+    batteryHealth_pct=88,
+    # Vehicle empty weight.
+    vehicleEmptyWeight=4000, # Google says 3838 to 4072 lbs
+    # Vehicle load such as passengers, used during testing. 
+    passengerWeight=250, # assume one passenger
+    # Regen braking efficiency, in percent.
+    regenEfficiency_pct=70,
+    # Vehicle frontal area in m^2.
+    frontalArea=2.22,
+    # Vehicle coefficient of drag, dimensionless.
+    coefDrag=0.23,
+    # Average price paid (on the road) for electricity. Price per KWh varies dramatically at superchargers.
+    # Units are currency units per KWh, see table below for currency units.
+    # In U.S. price is generally between $.30 and $.40, leaning towards high end.
+    avgElecCostPerKWh=0.37,
+    # The next three constants describe the distance driven by a gasoline-powered car per unit of fuel used, for
+    # comparing the EV to a gasoline-powered car. We will assume that at some speed the distance per unit peaks, and
+    # falls off at a constant linear rate at other speeds. Fuel efficiency units are currency units per fuel volume units.
+    # For example, a car might get 30 mpg at 60 mph and lose 1 mpg for every 5 mph. See table below for units.
+    fuelEfficiencyMax=30,
+    speedFor_fuelEfficiencyMax=60,
+    speedChgPerLossOfOneUnitFuelEff=5,
+    # Average fuel price, in units of units of currency per unit fuel volume, see table below for units.
+    # Gasoline in California has been around $5/gallon for quite a while.
+    avgFuelCostPerUnitOfFuel=5.00
+    )
+
+# The imperial and metric units used are:
+#   unit        imperial    metric
+#   ----        --------    ------
+#   distance    miles       km
+#   speed       mph         km/h
+#   energy      wh/mile     wh/km   Note: this must be in Wh and the same distance units as speed
+#   temperature °F          °C
+#   elevation   ft          m
+#   barometer   inHg        hPA
+#   weight      lb          kg
+#   area        sq. m.      sq. m.
+#   fuel vol.   gal         liter
+#   fuel eff.   mpg         km/l    Note: this must be in the same distance units as speed
+#   currency    $           €
+#   distPerCost mi/$        km/€
+
+# Set this TRUE if data in basicData and elsewhere is not imperial but metric. Note that this value is independent of
+# the setting of useMetricInPlots.
+basicDataUnits_metric = FALSE
+
+# Strings to use for different units in the plot output. This contains strings from the above table, based on the
+# setting of useMetricInPlots (NOT on basicDataUnits_metric), so this table is for units that are to appear in PLOTS
+# and is NOT necessarily the units used in basicData. For those, see the above table in comments, using the column
+# associated with basicDataUnits_metric.
+unitsTable = list(
+    distance=ifelse(useMetricInPlots, "km", "miles"),
+    speed=ifelse(useMetricInPlots, "km/h", "mph"),
+    energy=ifelse(useMetricInPlots, "wh/km", "wh/mile"),
+    temp=ifelse(useMetricInPlots, "°C", "°F"),
+    elev=ifelse(useMetricInPlots, "m", "ft"),
+    pres=ifelse(useMetricInPlots, "hPA", "inHg"),
+    weight=ifelse(useMetricInPlots, "kg", "lb"),
+    area=ifelse(useMetricInPlots, "sq. m.", "sq. m."),
+    fuelVol=ifelse(useMetricInPlots, "liter", "gal"),
+    fuelEff=ifelse(useMetricInPlots, "km/l", "mpg"),
+    currency=ifelse(useMetricInPlots, "Eu", "$"), # "€" doesn't display in PDF files. Change if another currency needed.
+    distPerCost=ifelse(useMetricInPlots, "km/Eu", "mi/$"))# "€" doesn't display in PDF files. Change if another currency needed.
+```
+
+The next code chunk contains a list of the air conditions to use when making certain plots, and one of these conditions (named "testCond") is the air conditions that were present when the vehicle was tested to gather the basicData.
+
+Edit this list if you want to change the air conditions that are plotted, or change the values to be in the units specified by basicDataUnits_metric.
+
+The units used here MUST BE the same units used in the basicData table, as given by basicDataUnits_metric.
+
+```{r paged.print=FALSE}
+
+# Different air conditions at which to plot EV power and range (elevation, temperature, barometer adjusted to sea level),
+# including a line color and a brief description for the plot legend. The inner list name is arbitrary except that one must
+# be named "testCond" and its conditions must match the EV test conditions.
+# Units here MUST MATCH units used for basicData (as given by basicDataUnits_metric).
+elev = basicData$elevation
+temperature = basicData$temperature
+pres = basicData$barometer
+airConditionsToPlot = list(
+    testCond=list(elev=elev, temp=temperature, pres=pres, desc="Test Conditions", col="black"),
+    hotDay=list(elev=0, temp=100, pres=29.92, desc="Hot Day", col=ifelse(useBWcolors, "gray70", "red")),
+    freezingDay=list(elev=0, temp=0, pres=29.92, desc="Freezing Day", col=ifelse(useBWcolors, "gray25", "blue")),
+    coolDay=list(elev=0, temp=50, pres=29.92, desc="Cool Day", col=ifelse(useBWcolors, "gray50", "skyblue")),
+    highElev=list(elev=6000, temp=50, pres=29.92, desc="High Elevation", col=ifelse(useBWcolors, "gray80", "orange")),
+    lowPres=list(elev=0, temp=50, pres=29.60, desc="Low Pressure", col=ifelse(useBWcolors, "gray40", "brown")),
+    highPres=list(elev=0, temp=50, pres=30.20, desc="High Pressure", col=ifelse(useBWcolors, "gray85", "pink"))
+    )
+
+```
+
+The next code chunk contains physical constants and one-line functions for manipulating physical values. It should not be necessary to change these.
+
+```{r paged.print=FALSE}
+
+# Temperature unit conversions.
+degC_to_degF = function(Tc) round(9*Tc/5+32, 1)
+degF_to_degC = function(Tf) round((Tf-32)*5/9, 1)
+degC_to_degK = function(Tc) Tc+273.15
+degK_to_degC = function(Tk) Tk-273.15
+
+# Physical constants.
+
+# Gravity acceleration at earth's surface.
+gravAccel = 9.8 # m/s^2
+
+# Molar mass of dry air.
+M_dryAir = 0.0289652 # kg/mol
+
+# Ideal gas constant.
+Rgas = 8.31446 # J/mol-°K
+
+# Specific gas constant for dry air.
+Rspec = Rgas/M_dryAir # m^2/s^2-°K
+
+# Conversion costants.
+kmph_per_mph = 1.60934 # 1 mph is this many km/h
+mps_per_mph = 0.447 # 1 mph is this many m/s
+km_per_mi = kmph_per_mph # 1 mile is this many km
+m_per_ft = 0.3048 # 1 foot is this many meters
+hPa_per_inHg = 33.86389 # 1 inch Hg is this many hPa
+kg_per_lb = 0.453592 # 1 pound mass is this many kg
+N_per_lb = 4.44822 # 1 pound force is this many N
+l_per_gal = 3.78541 # 1 gallon is this many liters
+kmpl_per_mpg = km_per_mi / l_per_gal # 1 mpg is this many km/l
+
+# Standard atmospheric pressure and temperature.
+pres_std_hPa = 1013.25 # hPa = 100 N/m^2
+pres_std_inHg = 29.92 # inches of mercury (mercury expands with heat so this depends on temperature, but this is standard?)
+Tc_std = 15 # °C
+Tk_std = degC_to_degK(Tc_std)
+
+# Sea level air density as a function of temperature, at standard pressure, from ideal gas law.
+rho_Tc = function(Tc) round(100*pres_std_hPa*M_dryAir/Rgas/degC_to_degK(Tc), 4) # kg/m^3
+
+# Sea level air density at standard temperature and pressure.
+rho_std = rho_Tc(Tc_std)
+
+# Temperature lapse rate with altitude.
+tempLapse_degC_per_m = 0.0065 # °K/m = °C/m
+tempLapse_degC_per_ft = tempLapse_degC_per_m * m_per_ft
+
+# Altitude change corresponding to a 1°C temperature change, used in equation for density altitude.
+# This is NOT the same as 1/tempLapse. Read up on density altitude.
+altLapse_m_per_degC = Rspec / (gravAccel - Rspec*tempLapse_degC_per_m) # m/°K = m/°C
+altLapse_ft_per_degC = altLapse_m_per_degC/m_per_ft
+
+# Altitude change corresponding to a 1 inHg barometer change, used in equation for pressure altitude.
+altLapse_ft_per_inHg = 914
+
+```
+
+The next code chunk contains "includes" of my standard include files. Normally I place this first in the file, but I wanted to define constants the user should see first above.
+
+```{r paged.print=FALSE}
+
+################################################################################
+# Standard header code.
+################################################################################
+# Set hard-coded RSOURCEPATH environment variable to project root directory.
+Sys.setenv(RSOURCEPATH=RSOURCEPATH)
+# Use RSOURCEPATH paths as one source of directories for include files.
+RSOURCEPATH = Sys.getenv("RSOURCEPATH")
+if (RSOURCEPATH == "") stop("RSOURCEPATH environment variable is not defined")
+# Get environment variable containing paths to R source code and find Include_HeaderCode.R
+srcDirs = strsplit(RSOURCEPATH, ":", fixed=TRUE)[[1]]
+hdrPaths = file.path(srcDirs, "Include_HeaderCode.R");
+path_Include_HeaderCode_R = hdrPaths[file.exists(hdrPaths)][1]
+if (is.na(path_Include_HeaderCode_R))
+    stop("Include_HeaderCode.R not found in:\n", paste(srcDirs, collapse=":"))
+# Include it and RootRsourceFile.R
+cat("Including Include_HeaderCode.R from: ", path_Include_HeaderCode_R, "\n")
+source(path_Include_HeaderCode_R)
+cat("Including Include_RootRsourceFile.R from: ", path_Include_RootRsourceFile_R, "\n")
+source(path_Include_RootRsourceFile_R)
+
+################################################################################
+# Include other R source code files.
+################################################################################
+includeFile("Include_UtilityFunctions.R")
+includeFile("Include_TextFunctions.R")
+includeFile("Include_PlotFunctions.R")
+
+```
+
+The next code chunk contains additional constant definitions affecting plot colors and line styles. Change these if you wish.
+
+```{r paged.print=FALSE}
+# Choose colors on DistPerUnitPrice graph page to give good black/white contrast when printed.
+col_elect = ifelse(useBWcolors, "gray30", "darkgreen")
+col_fuel = ifelse(useBWcolors, "gray80", "red")
+col_dist_per_fuel = ifelse(useBWcolors, "gray55", "blue")
+col_linear = ifelse(useBWcolors, "gray80", "red")
+col_nonlinear = ifelse(useBWcolors, "gray55", "blue")
+
+# Line widths.
+lwd_elect = 2
+lwd_fuel = 2
+lwd_dist_per_fuel = 2
+lwd_linear = 1
+lwd_nonlinear = 1
+
+# Line styles.
+lty_Miles = "solid"
+lty_Time = "dashed"
+lty_dist_per_fuel = "dotted"
+lty_linear = "dotdash"
+lty_nonlinear = "twodash"
+```
+
+The next code chunk adds to basicData some values derived from other values in basicData.
+
+No changes should be needed here, and probably no changes for the remainder of the file, although in some cases you may find that you want to tweak some things below, so read through the code.
+
+```{r paged.print=FALSE}
+
+# Total vehicle weight including load such as passengers.
+basicData$vehicleWeight = basicData$vehicleEmptyWeight + basicData$passengerWeight
+
+# Net battery capacity after subtracting degradation of battery, in KWh.
+basicData$batteryCapacity_KWh = round(basicData$batteryRatedCapacity_KWh*basicData$batteryHealth_pct/100)
+
+# Battery degradation in percent.
+basicData$batteryDegradation_pct = 100 - basicData$batteryHealth_pct
+```
+
+The next code chunk makes three new versions of the basicData list: one in imperial units, one in metric units, and one in the units being used for plotting.
+
+```{r paged.print=FALSE}
+
+# Convert basicData to imperial units. Round results so they will look good printed. Note that currency units are NOT
+# converted, they are never needed in any form other than the units they are specified in within basicData.
+basicData_imperial = basicData
+if (basicDataUnits_metric)
+    {
+    basicData_imperial$speed = round(basicData$speed/kmph_per_mph)
+    basicData_imperial$WhPerUnitDistance_dir1 = round(basicData$WhPerUnitDistance_dir1/km_per_mi)
+    basicData_imperial$WhPerUnitDistance_dir2 = round(basicData$WhPerUnitDistance_dir2/km_per_mi)
+    basicData_imperial$temperature = round(degC_to_degF(basicData$temperature))
+    basicData_imperial$elevation = round(basicData$elevation/m_per_ft)
+    basicData_imperial$barometer = round(basicData$barometer/hPa_per_inHg, 2)
+    basicData_imperial$vehicleEmptyWeight = round(basicData$vehicleEmptyWeight/kg_per_lb)
+    basicData_imperial$passengerWeight = round(basicData$passengerWeight/kg_per_lb)
+    basicData_imperial$fuelEfficiencyMax = round(basicData$fuelEfficiencyMax/kmpl_per_mpg)
+    basicData_imperial$speedFor_fuelEfficiencyMax = round(basicData$speedFor_fuelEfficiencyMax/kmph_per_mph)
+    basicData_imperial$speedChgPerLossOfOneUnitFuelEff = round(basicData$speedChgPerLossOfOneUnitFuelEff/kmph_per_mph)
+    basicData_imperial$avgFuelCostPerUnitOfFuel = round(basicData$avgFuelCostPerUnitOfFuel*l_per_gal, 2)
+    basicData_imperial$vehicleWeight = round(basicData$vehicleWeight/kg_per_lb)
+    }
+
+# Convert basicData to metric units. Round results so they will look good printed. Note that currency units are NOT
+# converted, they are never needed in any form other than the units they are specified in within basicData.
+basicData_metric = basicData
+if (!basicDataUnits_metric)
+    {
+    basicData_metric$speed = round(basicData$speed*kmph_per_mph)
+    basicData_metric$WhPerUnitDistance_dir1 = round(basicData$WhPerUnitDistance_dir1/km_per_mi)
+    basicData_metric$WhPerUnitDistance_dir2 = round(basicData$WhPerUnitDistance_dir2/km_per_mi)
+    basicData_metric$temperature = round(degF_to_degC(basicData$temperature))
+    basicData_metric$elevation = round(basicData$elevation*m_per_ft)
+    basicData_metric$barometer = round(basicData$barometer*hPa_per_inHg)
+    basicData_metric$vehicleEmptyWeight = round(basicData$vehicleEmptyWeight*kg_per_lb)
+    basicData_metric$passengerWeight = round(basicData$passengerWeight*kg_per_lb)
+    basicData_metric$fuelEfficiencyMax = round(basicData$fuelEfficiencyMax*kmpl_per_mpg)
+    basicData_metric$speedFor_fuelEfficiencyMax = round(basicData$speedFor_fuelEfficiencyMax*kmph_per_mph)
+    basicData_metric$speedChgPerLossOfOneUnitFuelEff = round(basicData$speedChgPerLossOfOneUnitFuelEff*kmph_per_mph)
+    basicData_metric$avgFuelCostPerUnitOfFuel = round(basicData$avgFuelCostPerUnitOfFuel/l_per_gal, 2)
+    basicData_metric$vehicleWeight = round(basicData$vehicleWeight*kg_per_lb)
+    }
+
+# Set basicData_plot to basicData in the units to be plotted as given by useMetricInPlots.
+basicData_plot = basicData_imperial
+if (useMetricInPlots)
+    basicData_plot = basicData_metric
+
+```
+
+The next code chunk contains definitions of functions for various power, energy and range computations.
+
+```{r paged.print=FALSE}
+
+# Define a function to return the fuel efficiency as a function of speed, rounded to one unit after decimal point.
+# Use the plotted units for speed as indicated by useMetricInPlots.
+fuelEfficiency = function(speed) round(basicData_plot$fuelEfficiencyMax -
+        abs(basicData_plot$speedFor_fuelEfficiencyMax - speed) / basicData_plot$speedChgPerLossOfOneUnitFuelEff, 1)
+
+# Pressure altitude (equivalent altitude at std temp/pres of a locale with given elevation and sea-level-adjusted barometer)
+PAft_in_ft_inHg = function(elevation_ft, barometer_inHg)
+                        round(elevation_ft + altLapse_ft_per_inHg*(pres_std_inHg-barometer_inHg))
+
+# ISA temperature deviation as a function of pressure altitude. This would be the temperature that would be expected at some
+# elevation because of altitude lapse rate if sea level pressure is standard pressure, all other things being equal.
+tempISAdegC_in_PAft = function(presAltitude_ft) round(Tc_std - tempLapse_degC_per_ft*presAltitude_ft, 2)
+
+# Density altitude (equivalent altitude at std temp/pres of a locale with given elevation, temperature, and
+# sea-level-adjusted barometer)
+DAft_in_ft_degF_inHg = function(elevation_ft, temp_degF, barometer_inHg, verbose=FALSE)
+    {
+    temp_degC = degF_to_degC(temp_degF)
+    presAltitude_ft = PAft_in_ft_inHg(elevation_ft, barometer_inHg)
+    if (verbose)
+        cat("At", elevation_ft, "ft altitude with barometer", barometer_inHg, "inHg, pressure altitude is",
+            presAltitude_ft, "feet\n")
+    Tisa = tempISAdegC_in_PAft(presAltitude_ft)
+    if (verbose)
+        cat("At that pressure altitude, ISA temperature deviation is", Tisa, "°C\n")
+    densAltitude_ft = round(presAltitude_ft + altLapse_ft_per_degC*(temp_degC - tempISAdegC_in_PAft(presAltitude_ft)))
+    if (verbose)
+        cat("And with those values and an outside temperature of", temp_degC, "°C, density altitude is",
+            densAltitude_ft, "feet\n")
+    return(densAltitude_ft)
+    }
+
+# Air density as a function of density altitude in feet, kg/m^3.
+rhoMetric_in_DAft = function(densAltitude_ft) rho_std*(Tk_std-tempLapse_degC_per_ft*densAltitude_ft)/Tk_std
+
+# Drag force in Newtons at a given speed, air density, frontal area, and drag coefficient.
+dragForceN_in_mph_metric = function(mph, rho, frontalArea_sq_m, dragCoef) dragCoef*rho*frontalArea_sq_m*(mph*mps_per_mph)^2/2
+
+# Power in Kw required to overcome drag at a given speed, air density, frontal area, and drag coefficient.
+dragPowerKw_in_mph_metric = function(mph, rho, frontalArea_sq_m, dragCoef)
+    round(dragForceN_in_mph_metric(mph, rho, frontalArea_sq_m, dragCoef)*mph*mps_per_mph/1000, 3)
+
+# Power in Kw required to overcome drag at a given speed, air density, for vehicle that was tested.
+dragPowerKwTestVehicle_in_mph_metric = function(mph, rho)
+    dragPowerKw_in_mph_metric(mph, rho, basicData_plot$frontalArea, basicData_plot$coefDrag)
+
+# Convert a speed (any units) and a road grade (in percent, positive for up, negative for down) into the speed in
+# the vertical direction. Approximate, assumes grade small and hypotenuse about the same as x-distance.
+gradeUphillSpeed = function(speed, grade) speed*grade/100
+
+# Convert a number of pounds of force, a speed in mph, and a road grade in percent to number of watts out of
+# (positive grade) or into (negative grade) battery. If negative, regen braking efficiency is factored in.
+powerWattsAtGradeAndWeight_in_lbs_mph = function(pounds, mph, grade)
+    {
+    watts = pounds*N_per_lb*gradeUphillSpeed(mph, grade)*mps_per_mph
+    if (grade < 0)
+        watts = watts * basicData_plot$regenEfficiency_pct/100
+    return(watts)
+    }
+
+# Convert a speed in mph and a road grade in percent to number of watts out of (positive grade) or into
+# (negative grade) battery, using the weight of the vehicle that was tested.
+powerWattsAtGradeTestVehicle_in_mph = function(mph, grade)
+    powerWattsAtGradeAndWeight_in_lbs_mph(basicData_imperial$vehicleWeight, mph, grade)
+
+# Convert speed in mph, flat road range in miles, and road grade into range in miles, for the vehicle being tested.
+# Subtract the range devoured by the power required to lift the vehicle up a grade from the flat-road range,
+# given a speed. The arguments can be vectors of length > 1, but any that are > 1 must be the same length.
+# Return the modified range(s). For negative grades (downhill), the range increases due to regen. A negative
+# range means the battery charges to add additional range. Note that when grade = 0 the return value should
+# equal flatRange but may be slightly different due to arithmetic precision limitations.
+rangeAtGradeTestVehicle_in_mph_mi = function(mph, flatRange_mi, grade)
+    {
+    wattsFlatRoad = 1000 * mph * basicData_plot$batteryCapacity_KWh / flatRange_mi
+    wattsLifting = powerWattsAtGradeTestVehicle_in_mph(mph, grade)
+    wattsTotal = wattsFlatRoad + wattsLifting
+    totalRange = mph * basicData_plot$batteryCapacity_KWh * 1000 / wattsTotal
+    return(totalRange)
+    }
+
+```
+
+The next code chunk contains definitions of more general-purpose functions.
+
+```{r paged.print=FALSE}
+
+# Get settable par() values. Some values are not settable and give a warning if you try to set them.
+getParSettable = function()
+    {
+    svpar = par()
+    svpar$cin = NULL
+    svpar$cra = NULL
+    svpar$csi = NULL
+    svpar$cxy = NULL
+    svpar$din = NULL
+    svpar$page = NULL
+    return(svpar)
+    }
+
+# Round V to the fewest number of significant digits that still keep it within pct percent of the original number.
+roundToAccuracy = function(V, pctAccuracy=2.5)
+    {
+    f = pctAccuracy/100
+    V1 = V*(1-f)
+    V2 = V*(1+f)
+    if (V < 0)
+        {
+        t = V1
+        V1 = V2
+        V2 = t
+        }
+    dgts = 1
+    Vr = signif(V, dgts)
+    while (Vr < V1 || Vr > V2)
+        {
+        dgts = dgts + 1
+        Vr = signif(V, dgts)
+        }
+    return(Vr)
+    }
+
+# Find slope of line defined by the two non-NA points in (x, y) whose index in x and y is near fraction f of length(x).
+# Return a list with these members:
+#   leftX: x-coordinate of first of the two non-NA points.
+#   leftY: y-coordinate of first of the two non-NA points.
+#   midX: x-coordinate of midpoint of the two non-NA points.
+#   midY: y-coordinate of midpoint of the two non-NA points.
+#   rightX: x-coordinate of second of the two non-NA points.
+#   rightY: y-coordinate of second of the two non-NA points.
+#   slope: slope of the line between the two non-NA points.
+findSlope = function(x, y, f = 0.5)
+    {
+    names(x) = NULL
+    names(y) = NULL
+    idxs = which(!is.na(x) & !is.na(y))
+    N = length(idxs)
+    if (N < 2)
+        stop("findSlope needs at least two points")
+    i = floor(N*f*0.95)
+    j = floor(N*f*1.05)
+    if (i < 1) i = 1
+    if (j > N) j = N
+    if (i >= j)
+        {
+        if (j > 1)
+            i = j - 1
+        else if (i < N)
+            j = i+1
+        else
+            stop("Error i >= j  N = ", N)
+        }
+    idxs = idxs[c(i, j)]
+    leftX = x[idxs[1]]
+    leftY = y[idxs[1]]
+    midX = mean(x[idxs])
+    midY = mean(y[idxs])
+    rightX = x[idxs[2]]
+    rightY = y[idxs[2]]
+    slope = diff(y[idxs])/diff(x[idxs])
+    names(slope) = NULL
+    return(list(leftX=leftX, leftY=leftY, midX=midX, midY=midY, rightX=rightX, rightY=rightY, slope=slope))
+    }
+
+# Similar to sprintf() except this interprets "~"-specifiers rather than "%"-specifiers. A "~"-specifier is of one of these
+# forms:   ~WORD@  or  ~WORD`  or ~WORD^
+# where WORD is either the name of an element in the unitsTable list (checked first) or an element in the basicData_plot list
+# (checked second). The value of that element in the list is substituted for the "~"-specifier. If the specifier ends with
+# "`", the substituted string is changed to be Capitalized, and if it ends in "^", the ENTIRE substituted string is
+# CAPITALIZED. The modified string is returned.
+# The substitution is applied to each argument that is of type character. All arguments (after such substition) are
+# concatenated paste0 and the resulting string is returned.
+tprintf = function(...)
+    {
+    L = list(...)
+    resS = ""
+    for (i in 1:length(L))
+        {
+        # If the argument is a character type with no "~" characters, just append it to the result.
+        if (!is.character(L[[i]]) || length(L[[i]]) != 1 || !grepl("~", L[[i]], fixed=TRUE))
+            resS = paste0(resS, L[[i]])
+        else
+            {
+            S = L[[i]]
+            ch = strsplit(S, "")[[1]]
+            idxT = which(ch == "~")
+            idxE = which(ch %in% c("@", "`", "^"))
+            if (length(idxT) != length(idxE))
+                stop("tprintf expected each ~-specifier to end in @, `, or ^ and those would appear nowhere else, ",
+                    "but S is:\n", S)
+            if (any(idxE <= idxT+1))
+                stop("tprintf expected each ~-specifier to start with ~ and end with @, `, or ^, with WORD in between, ",
+                    "but S is:\n", S)
+            out = c()
+            if (idxT[1] > 1)
+                out = ch[1:(idxT[1]-1)]
+            for (i in 1:length(idxT))
+                {
+                word = paste(ch[(idxT[i]+1):(idxE[i]-1)], collapse="")
+                #cat0("word = ", word, "\n")
+                E = ch[idxE[i]]
+                if (word %in% names(unitsTable))
+                    rplc = unitsTable[[word]]
+                else if (word %in% names(basicData_plot))
+                    rplc = as.character(basicData_plot[[word]])
+                else
+                    stop("tprintf doesn't find WORD '", word, "' in either basicData_plot or unitsTable")
+                if (E == "^")
+                    rplc = toupper(rplc)
+                #cat0("rplc = ", rplc, "\n")
+                rplc = strsplit(rplc, "")[[1]]
+                if (E == "`")
+                    rplc[1] = toupper(rplc[1])
+                out = c(out, rplc)
+                j = idxE[i] + 1
+                k = ifelse(i < length(idxT), idxT[i+1]-1, length(ch))
+                if (j <= k)
+                    out = c(out, ch[j:k])
+                }
+            resS = paste0(resS, paste(out, collapse=""))
+            }
+        }
+    return(resS)
+    }
+
+```
+
+The next code chunk places the measured speed and wh/mi data into a data frame, using the units used for plotting, then derives some additional columns in it.
+
+```{r paged.print=FALSE}
+
+dt = data.frame(speed=basicData_plot$speed,
+        WhPerUnitDistance_dir1=basicData_plot$WhPerUnitDistance_dir1,
+        WhPerUnitDistance_dir2=basicData_plot$WhPerUnitDistance_dir2,
+        omitForApproximation=basicData_plot$omitForApproximation, stringsAsFactors=FALSE)
+
+# Average the two directions to get the value we will use for most plots.
+dt$WhPerUnitDistance = (dt$WhPerUnitDistance_dir1 + dt$WhPerUnitDistance_dir2)/2
+
+# Compute power used.
+dt$kw = dt$speed * dt$WhPerUnitDistance / 1000
+
+# Compute range using degraded battery capacity.
+dt$range = round(basicData_plot$batteryCapacity_KWh*1000/dt$WhPerUnitDistance)
+
+# Compute electricity distance travelled per unit of currency.
+dt$electDistPerUnitPrice = round(1/(basicData_plot$avgElecCostPerKWh*dt$WhPerUnitDistance/1000), 2)
+#range(dt$electDistPerUnitPrice)
+
+# Compute fuel efficiency of equivalent fuel vehicle at the same set of speeds.
+dt$distPerUnitFossilFuel = fuelEfficiency(dt$speed)
+dt$gasDistPerUnitPrice = round(dt$distPerUnitFossilFuel/basicData_plot$avgFuelCostPerUnitOfFuel, 2)
+#range(dt$gasDistPerUnitPrice)
+
+# Define a distance and number of hours at which to compute energy cost at different speeds.
+energyCostDist = ifelse(useMetricInPlots, 150, 100)
+energyCostHours = 1.0
+
+# Compute electricity and equivalent gasoline cost per energyCostDist miles.
+dt$electCostForDistance = round(basicData_plot$avgElecCostPerKWh*energyCostDist*dt$WhPerUnitDistance/1000, 2)
+dt$gasCostForDist = round(basicData_plot$avgFuelCostPerUnitOfFuel*energyCostDist/dt$distPerUnitFossilFuel, 2)
+#range(dt$electCostForDistance)
+#range(dt$gasCostForDist)
+
+# Compute electricity and equivalent gasoline cost per energyCostHours hours.
+dt$electCostForHours = round(basicData_plot$avgElecCostPerKWh*energyCostHours*dt$speed*dt$WhPerUnitDistance/1000, 2)
+dt$gasCostForHours = round(basicData_plot$avgFuelCostPerUnitOfFuel*energyCostHours*dt$speed/dt$distPerUnitFossilFuel, 2)
+#range(dt$electCostForHours)
+#range(dt$gasCostForHours)
+
+# Define a constant for x-axis upper limit for plots of dt$speed on the x-axis. Round it up to next-highest multiple of 10,
+# it will work better for upper axis limit. Also define a constant for number of tick marks and grid lines when dt$speed
+# is along x-axis.
+maxMeasuredSpeed_axis = 10*ceiling(max(dt$speed)/10)
+nTicksMeasuredSpeed_axis = maxMeasuredSpeed_axis/5
+
+# Define similar constants for y-axis upper limit when dt$WhPrUnitDistance is plotted on the y-axis. Round it up to next-highest
+# multiple of 100.
+maxWhPerUnitDistance_axis = 100*ceiling(max(dt$WhPerUnitDistance)/100)
+nTicksWhPerUnitDistance_axis = maxWhPerUnitDistance_axis/50
+
+# Define similar constants for y-axis upper limit when dt$kw is plotted on the y-axis. Round it up to next-highest
+# multiple of 10.
+maxKw_axis = 10*ceiling(max(dt$kw)/10)
+nTicksKw_axis = maxKw_axis/5
+
+# Define similar constants for y-axis upper limit when dt$range is plotted on the y-axis. Round it up to next-highest
+# multiple of 100.
+maxRange_axis = 100*ceiling(max(dt$range)/100)
+nTicksRange_axis = maxRange_axis/100
+
+# Define similar constants for y-axis upper limit when dt$electDistPerUnitPrice is plotted on the LEFT-SIDE y-axis. Round it
+# up to next-highest multiple of 10.
+maxElectDistPerUnitPrice_left_axis = 10*ceiling(max(dt$electDistPerUnitPrice)/10)
+nTicksElectDistPerUnitPrice_left_axis = maxElectDistPerUnitPrice_left_axis/5
+
+# Define similar constants for y-axis upper limit when dt$distPerUnitFossilFuel is plotted on the RIGHT-SIDE y-axis
+# with dt$electDistPerUnitPrice plotted on the LEFT-SIDE y-axis. This is computed so that the grid lines will line up with
+# BOTH AXES, which may lead to poor scaling for the right-side axis, just however it turns out.
+maxDistPerUnitFossilFuel_right_axis_1 = maxElectDistPerUnitPrice_left_axis *
+    ceiling(max(dt$distPerUnitFossilFuel)/maxElectDistPerUnitPrice_left_axis)
+nTicksDistPerUnitFossilFuel_right_axis_1 = nTicksElectDistPerUnitPrice_left_axis
+
+# Define similar constants for y-axis upper limit when any of dt$electCostForDistance, dt$electCostForHours, dt$gasCostForDist,
+# or dt$gasCostForHours is plotted on the LEFT-SIDE y-axis. Round it up to next-highest multiple of 10.
+maxCostForDistHours_left_axis = 10*ceiling(max(
+    c(dt$electCostForDistance, dt$electCostForHours, dt$gasCostForDist, dt$gasCostForHours))/10)
+nTicksCostForDistHours_left_axis = maxCostForDistHours_left_axis/5
+
+# Define similar constants for y-axis upper limit when dt$distPerUnitFossilFuel is plotted on the RIGHT-SIDE y-axis
+# with the immediately above values plotted on the LEFT-SIDE y-axis. This is computed so that the grid lines will line up with
+# BOTH AXES, which may lead to poor scaling for the right-side axis, just however it turns out. Names are the same as earlier
+# with _1 changed to _2, same thing is being plotted, but these are two different plots and the left-side axes are different.
+maxDistPerUnitFossilFuel_right_axis_2 = maxCostForDistHours_left_axis *
+    ceiling(max(dt$distPerUnitFossilFuel)/maxCostForDistHours_left_axis)
+nTicksDistPerUnitFossilFuel_right_axis_2 = nTicksCostForDistHours_left_axis
+
+# Copy dt to dt_batteryPlots and remove entries with speeds under a certain minimum, probably larger than the minimum
+# measured speed, because data to plot peters out in the upper-left plot corner for very low speeds. (This may need
+# adjusting for new measurements). 
+dt_batteryPlots = dt
+dt_batteryPlots = dt_batteryPlots[dt_batteryPlots$speed >= ifelse(useMetricInPlots, 50, 30),]
+
+# Define constants for x-axis lower and upper limits for plots of dt_batteryPlots$speed on the x-axis. For minimum speed,
+# round the actual minimum down to next lower multiple of 5. For maximum, use same maximum as for earlier plots with speed.
+# Also define a constant for number of tick marks and grid lines when speed is along x-axis in battery plots, spacing it
+# every 5 mph or km/h.
+minSpeed_batteryPlots = 5*floor(dt_batteryPlots$speed[1]/5)
+maxSpeed_batteryPlots = maxMeasuredSpeed_axis
+nTicksSpeed_batteryPlots = (maxMeasuredSpeed_axis-minSpeed_batteryPlots)/5
+
+# Compute hours of elapsed time in dt_batteryPlots as a function of range and speed.
+dt_batteryPlots$hours = round(4*dt_batteryPlots$range/dt_batteryPlots$speed)/4 # Rounded to nearest 1/4 hour.
+
+# Choose a subset of the speeds from dt_batteryPlots$speed to be plotted each as a separate line on two of the battery plots.
+# If all the speeds were plotted, there would be too many lines and the plot would be too busy. Here we just choose those that
+# are evenly divisible by 10, or if fewer than 5 are, choose those separated by at least 10 mph or 15 km/h.
+ind = (dt_batteryPlots$speed %% 10 == 0)
+if (sum(ind) < 5)
+    {
+    D = diff(dt_batteryPlots$speed)
+    minD = ifelse(useMetricInPlots, 15, 10)
+    ind = TRUE # Always use first (lowest) speed
+    while (length(D) > 0)
+        {
+        if (D[1] >= minD)
+            ind = c(ind, TRUE) # Use next speed, difference to last one chosen is at least minD
+        else
+            {
+            ind = c(ind, FALSE) # Don't use next speed, difference to last one is < minD
+            if (length(D) > 1)
+                D[2] = D[2] + D[1] # Accumulate difference into next speed's differeence from last
+            }
+        D = D[-1] # Advance to next difference/next speed.
+        }
+    }
+if (sum(ind) < 5)
+    ind = rep(TRUE, length(dt_batteryPlots$speed))
+speeds_batteryPlots = dt_batteryPlots$speed[ind]
+
+# Choose a range of speeds at which to compute various functions of speed at a fine speed scale. Create a vector of the speeds
+# and also convert to mph for use in functions requiring imperial units. Define number of x-axis ticks. 
+minFineSpeed = ifelse(useMetricInPlots, 40, 25)
+maxFineSpeed = ifelse(useMetricInPlots, 160, 100)
+fineSpeeds = seq(minFineSpeed, maxFineSpeed, by=0.1)
+fineSpeeds_mph = fineSpeeds * ifelse(useMetricInPlots, 1/kmph_per_mph, 1)
+names(fineSpeeds_mph) = fineSpeeds
+nTicksFineSpeed = (maxFineSpeed-minFineSpeed)/ifelse(useMetricInPlots, 10, 5)
+
+# For plotting range on a log-axis in the grades plot, we want the maximum range to be quite large. Define the ranges here.
+minRange_log = 50
+maxRange_log = ifelse(useMetricInPlots, 12000, 7500)
+# Set an upper limit SOMEWHAT BELOW the maximum range on the axis BUT AT 1 or 2 or 5 times A POWER OF 10 for nice plotting of
+# huge downhill grade values, see plot.
+maxPlottedRange_log = ifelse(useMetricInPlots, 10000, 5000)
+
+# Choose a set of wind speeds for which to plot drag curves. Create a vector of the speeds and also convert to mph for use in
+# functions requiring imperial units.
+peakWindSpeed = ifelse(useMetricInPlots, 40, 25)
+windSpeeds = seq(-peakWindSpeed, +peakWindSpeed, by=ifelse(useMetricInPlots, 10, 5))
+windSpeeds_mph = windSpeeds * ifelse(useMetricInPlots, 1/kmph_per_mph, 1)
+names(windSpeeds_mph) = windSpeeds
+
+```
+
+The next code chunk computes approximations to several curves based on columns in dt. The coefficients are stored in list apx (approximation). The list contains sublists, one for each parameter that has one or more approximations, named for the parameter (e.g. SpeedEnergy for an approximation of energy based on speed). Within the parameter list is one or more sublists, one for each approximation. The names for each sublist are "ord1", "ord2", "ord3" for approximations that are linear or first order (ord1), quadratic or second order (ord2), or third order (ord3). Within the ord list are the coefficients of the approximation (A, B, C, etc., or for linear I (intersect) and M (slope)). In some cases scaling constants are used to make a more easier-to-read formula, in which case there may be members such as 'divisor'. List member 'text' is a string representation of the approximation formula, and member 'expr' is an R expression object for the formula.
+
+```{r paged.print=FALSE}
+
+# Store all approximations in apx list.
+apx = list()
+
+# Copy dt to dta and remove outliers, then use dta for approximations.
+dta = dt
+dta = dta[!dta$omitForApproximation,]
+
+# Compute linear approximation for SpeedEnergy, energy as a function of speed.
+fit1 = lm(WhPerUnitDistance ~ speed, data=dta)
+coef1 = fit1$coefficients
+coefs = list()
+coefs$I = roundToAccuracy(coef1[1], pctAccuracy=10)
+coefs$M = roundToAccuracy(coef1[2], pctAccuracy=10)
+coefs$text = paste0("E = ", coefs$I, "+", coefs$M, "S")
+coefs$expr = epaste("'E = '*", coefs$I, "+", coefs$M, "*'S'")
+apx$SpeedEnergy$ord1 = coefs
+
+# Compute quadratic approximation for SpeedEnergy, energy as a function of speed.
+fit2 = lm(WhPerUnitDistance ~ speed + I(speed^2), data=dta)
+coef2 = fit2$coefficients
+# Convert to form: coefC + (coefA*speed+coefB)*speed/200, nicely rounded
+divisor = 200
+coefA = roundToAccuracy(coef2[3]*divisor, pctAccuracy=2.5)
+coefB = roundToAccuracy(coef2[2], pctAccuracy=2.5)*divisor
+coefC = roundToAccuracy(coef2[1], pctAccuracy=2.5)
+coefs = list()
+coefs$A = coefA
+coefs$B = coefB
+coefs$C = coefC
+coefs$divisor = divisor
+if (coefA < 0) stop("Expected coefA to be >=0")
+if (coefC < 0) stop("Expected coefC to be >=0")
+coefBsign = ifelse(coefB < 0, "-", "+")
+coefBabs = abs(coefB)
+coefs$text = paste0("E = ", coefs$C, "+(", coefs$A, "S", coefBsign, coefBabs, ")S/", coefs$divisor)
+coefs$expr = epaste("'E = '*", coefs$C, "+(", coefs$A, "*'S'", coefBsign, coefBabs, ")*'S'/", coefs$divisor)
+apx$SpeedEnergy$ord2 = coefs
+
+# Compute linear approximation for SpeedPower, power as a function of speed.
+fit1 = lm(kw ~ speed, data=dta)
+coef1 = fit1$coefficients
+coefI = roundToAccuracy(coef1[1], pctAccuracy=5)
+coefs = list()
+coefs$I = coefI
+coefIsign = ifelse(coefI < 0, "-", "+")
+coefIabs = abs(coefI)
+coefs$M = roundToAccuracy(coef1[2], pctAccuracy=5)
+coefs$text = paste0("P = ", coefs$M, "S", coefIsign, coefIabs)
+coefs$expr = epaste("'P = '*", coefs$M, "*'S'", coefIsign, coefIabs)
+apx$SpeedPower$ord1 = coefs
+
+# Compute 3rd-order approximation for SpeedPower, power as a function of speed.
+# Add an extra data point at (0,0) to force the curve to go through the origin. Remove it after fitting.
+dta[nrow(dta)+1,] = NA
+dta$speed[nrow(dta)] = 0
+dta$kw[nrow(dta)] = 0
+fit2 = lm(kw ~ speed + I(speed^2) + I(speed^3), data=dta)
+dta = dta[-nrow(dta),]
+coef2 = fit2$coefficients
+# Convert to form: (((coefA*speed+coefB)*speed/1000+coefC)*speed+coefD)/1000, nicely rounded
+divisor1 = 10000
+divisor2 = 100
+coefA = roundToAccuracy(coef2[4]*divisor1*divisor2, pctAccuracy=2.5)
+coefB = roundToAccuracy(coef2[3]*divisor1, pctAccuracy=2.5)*divisor2
+coefC = roundToAccuracy(coef2[2], pctAccuracy=2.5)*divisor2
+coefD = roundToAccuracy(coef2[1], pctAccuracy=2.5)*divisor2
+coefs = list()
+coefs$A = coefA
+coefs$B = coefB
+coefs$C = coefC
+coefs$D = coefD
+coefs$divisor1 = divisor1
+coefs$divisor2 = divisor2
+if (coefA < 0) stop("Expected coefA to be >=0")
+coefBsign = ifelse(coefB < 0, "-", "+")
+coefCsign = ifelse(coefC < 0, "-", "+")
+coefDsign = ifelse(coefD < 0, "-", "+")
+coefBabs = abs(coefB)
+coefCabs = abs(coefC)
+coefDabs = abs(coefD)
+coefs$text = paste0("P = ((", coefs$A, "S", coefBsign, coefBabs, ")S/", coefs$divisor1, coefCsign, coefCabs, ")S/",
+    coefs$divisor2, coefDsign, coefDabs)
+coefs$expr = epaste("'P = '((", coefs$A, "*'S'", coefBsign, coefBabs, ")*'S'/", coefs$divisor1,
+        coefCsign, coefCabs, ")*'S'/", coefs$divisor2, coefDsign, coefDabs)
+apx$SpeedPower$ord3 = coefs
+
+# Compute linear approximation for SpeedRange, range as a function of speed.
+fit1 = lm(range ~ speed, data=dta)
+coef1 = fit1$coefficients
+coefs = list()
+coefs$I = roundToAccuracy(coef1[1], pctAccuracy=5)
+coefs$M = roundToAccuracy(coef1[2], pctAccuracy=5)
+coefMsign = ifelse(coefs$M < 0, "-", "+")
+coefMabs = abs(coefs$M)
+coefs$text = paste0("R = ", coefs$I, coefMsign, coefMabs, "S")
+coefs$expr = epaste("'R = '*", coefs$I, coefMsign, coefMabs, "*'S'")
+apx$SpeedRange$ord1 = coefs
+
+# Compute linear approximation for SpeedDPUP, distance per unit price as a function of speed.
+fit1 = lm(electDistPerUnitPrice ~ speed, data=dta)
+coef1 = fit1$coefficients
+coefs = list()
+coefs$I = roundToAccuracy(coef1[1], pctAccuracy=1)
+coefs$M = roundToAccuracy(coef1[2], pctAccuracy=5)
+coefMsign = ifelse(coefs$M < 0, "-", "+")
+coefMabs = abs(coefs$M)
+coefs$text = paste0(tprintf("~distPerCost@ = "), coefs$I, coefMsign, coefMabs, "S")
+coefs$expr = epaste(tprintf("'~distPerCost@ = '*"), coefs$I, coefMsign, coefMabs, "*'S'")
+apx$SpeedDPUP$ord1 = coefs
+
+```
+
+The next code chunk uses the approximations above to compute some estimates of power values at speeds given by fineSpeeds.
+
+```{r paged.print=FALSE}
+
+# Estimate total power required at each fineSpeeds speed using third-order approximation.
+coefs = apx$SpeedPower$ord3
+totalPower_testConditions =
+    round((((coefs$A*fineSpeeds+coefs$B)*fineSpeeds/coefs$divisor1+coefs$C)*fineSpeeds+coefs$D)/coefs$divisor2, 3)
+names(totalPower_testConditions) = as.character(fineSpeeds)
+
+# Compute baseline power excluding drag at fineSpeeds speeds by subtracting drag at test conditions with 0 wind from total
+# power required at each speed.
+DA_ft = DAft_in_ft_degF_inHg(basicData_imperial$elevation, basicData_imperial$temperature, basicData_imperial$barometer)
+rho = rhoMetric_in_DAft(DA_ft)
+kw = dragPowerKwTestVehicle_in_mph_metric(fineSpeeds_mph, rho)
+baselinePower = totalPower_testConditions - kw
+names(baselinePower) = as.character(fineSpeeds)
+
+```
+
+Beginning of plots.
+
+First show a plot of watt-hours per unit distance at different speeds.
+
+```{r fig.width=8.5, fig.height=3.75}
+# E = energy, S = speed
+plotEvsS = function(isPDF=FALSE)
+    {
+    xlim = c(0, maxMeasuredSpeed_axis)
+    xaxp = c(xlim, nTicksMeasuredSpeed_axis)
+    ylim = c(0, maxWhPerUnitDistance_axis)
+    yaxp = c(ylim, nTicksWhPerUnitDistance_axis)
+
+    plot(NA, type='n', xlim=xlim, ylim=ylim, xaxp=xaxp, yaxp=yaxp, las=2, cex.main=ifelse(isPDF, 1.5, 1.1),
+        main=tprintf("Energy Used per ~distance` on Flat Road, ~description@"),
+        xlab=tprintf("Speed on Flat Road (~speed@)"),
+        ylab=tprintf("Energy Used per ~distance` (watt-hours per ~distance`)"))
+    mtext("this shows raw measured data, and includes linear and quadratic approximations",
+        side=3, line=ifelse(isPDF, 0.25, 0.5), cex=0.9)
+    par(xaxp=xaxp)
+    par(yaxp=yaxp)
+    grid(col="darkgray", lwd=0.5, lty="solid")
+    points(dt$speed, dt$WhPerUnitDistance, pch=20)
+    lines(dt$speed, dt$WhPerUnitDistance, lwd=2)
+    points(dt$speed, dt$WhPerUnitDistance_dir2, pch=20, col="gray")
+    lines(dt$speed, dt$WhPerUnitDistance_dir2, lwd=2, lty="dashed", col="gray")
+    points(dt$speed, dt$WhPerUnitDistance_dir1, pch=20, col="gray")
+    lines(dt$speed, dt$WhPerUnitDistance_dir1, lwd=2, lty="dotted", col="gray")
+    
+    coefs1 = apx$SpeedEnergy$ord1
+    abline(a=coefs1$I, b=coefs1$M, col=col_linear, lwd=lwd_linear, lty=lty_linear)
+    
+    coefs2 = apx$SpeedEnergy$ord2
+    x = seq(xlim[1], xlim[2]+10, length.out=50)
+    y = coefs2$C+(coefs2$A*x+coefs2$B)*x/coefs2$divisor
+    lines(x, y, col=col_nonlinear, lwd=lwd_nonlinear, lty=lty_nonlinear)
+
+    legend("topleft",
+        c("Going one way", "Average", "Going back same way",
+            paste0("Linear approx: ", coefs1$text), paste0("Quadratic approx: ", coefs2$text)),
+        col=c("gray", "black", "gray", col_linear, col_nonlinear),
+        lwd=c(2, 2, 2, lwd_linear, lwd_nonlinear), lty=c("dotted", "solid", "dashed", lty_linear, lty_nonlinear),
+        pch=20, seg.len=4, cex=ifelse(isPDF, 1.0, 0.8))
+    }
+
+plotEvsS()
+
+```
+
+Plot power as a function of speed.
+
+```{r fig.width=8.5, fig.height=3.75}
+# P = power, S = speed
+plotPvsS = function(isPDF=FALSE)
+    {
+    xlim = c(0, maxMeasuredSpeed_axis)
+    xaxp = c(xlim, nTicksMeasuredSpeed_axis)
+    ylim = c(0, maxKw_axis)
+    yaxp = c(ylim, nTicksKw_axis)
+    plot(NA, type='n', xlim=xlim, ylim=ylim, xaxp=xaxp, yaxp=yaxp, las=2, cex.main=ifelse(isPDF, 1.5, 1.1),
+        main=tprintf("Power Consumption on Flat Road, ~description@"),
+        xlab=tprintf("Speed on Flat Road (~speed@)"),
+        ylab="Power Consumption (Kw)")
+    mtext("including linear and third-order approximations", side=3, line=ifelse(isPDF, 0.25, 0.5), cex=0.9)
+    par(xaxp=xaxp)
+    par(yaxp=yaxp)
+    grid(col="darkgray", lwd=0.5, lty="solid")
+    points(dt$speed, dt$kw, pch=20)
+    lines(dt$speed, dt$kw, lwd=2)
+
+    coefs1 = apx$SpeedPower$ord1
+    abline(a=coefs1$I, b=coefs1$M, col=col_linear, lwd=lwd_linear, lty=lty_linear)
+
+    coefs2 = apx$SpeedPower$ord3
+    x = seq(0, maxMeasuredSpeed_axis+10, by=1)
+    y = (((coefs2$A*x+coefs2$B)*x/coefs2$divisor1+coefs2$C)*x + coefs2$D)/coefs2$divisor2
+    lines(x, y, col=col_nonlinear, lwd=lwd_nonlinear, lty=lty_nonlinear)
+
+    legend("topleft",
+        c("Power vs Speed",
+            paste0("Linear approx: ", coefs1$text), paste0("3rd-order approx: ", coefs2$text)),
+        col=c("black", col_linear, col_nonlinear),
+        lwd=c(2, lwd_linear, lwd_nonlinear), lty=c("solid", lty_linear, lty_nonlinear),
+        pch=20, seg.len=4, cex=ifelse(isPDF, 1.2, 1.0))
+    }
+
+plotPvsS()
+
+```
+
+Plot estimated range based on battery possibly with degradation.
+
+```{r fig.width=8.5, fig.height=3.75}
+# R = range, S = speed
+plotRvsS = function(isPDF=FALSE)
+    {
+    xlim = c(0, maxMeasuredSpeed_axis)
+    xaxp = c(xlim, nTicksMeasuredSpeed_axis)
+    ylim = c(0, maxRange_axis)
+    yaxp = c(ylim, nTicksRange_axis)
+    plot(NA, type='n', xlim=xlim, ylim=ylim, xaxp=xaxp, yaxp=yaxp, las=2, cex.main=ifelse(isPDF, 1.25, 1.1),
+        main=tprintf("Estimated Range At Various Speeds, ~description@"),
+        xlab=tprintf("Speed on Flat Road (~speed@)"),
+        ylab=tprintf("Range of Full Battery (~distance@)"))
+    mtext(tprintf("including linear approximation (assume battery degradation of ~batteryDegradation_pct@% for capacity of ",
+        "~batteryCapacity_KWh@ KWh)"), side=3, line=ifelse(isPDF, 0.25, 0.5), cex=0.9)
+    par(xaxp=xaxp)
+    par(yaxp=yaxp)
+    grid(col="darkgray", lwd=0.5, lty="solid")
+    points(dt$speed, dt$range, pch=20)
+    lines(dt$speed, dt$range, lwd=2)
+    
+    coefs1 = apx$SpeedRange$ord1
+    abline(a=coefs1$I, b=coefs1$M, col=col_linear, lwd=lwd_linear, lty=lty_linear)
+
+    legend("bottomleft",
+        c("Range vs Speed", paste0("Linear approx: ", coefs1$text)),
+        col=c("black", col_linear), lwd=c(2, lwd_linear), lty=c("solid", lty_linear),
+        pch=20, seg.len=4, cex=ifelse(isPDF, 1.2, 1.0))
+    }
+
+plotRvsS()
+```
+
+Plot energy used as a function of hours elapsed at different speeds.
+
+```{r fig.width=8.5, fig.height=11}
+# E = energy, H = hours, S = speed
+plotEvsHS = function(isPDF=FALSE)
+    {
+    # Choose a nice set of elapsed hours for the x-axis, then compute a matrix of energy used for each speed and hours.
+    maxHoursElapsed = 3
+    hoursElapsed = seq(0, maxHoursElapsed, by=0.25)
+    mtxEnergyUsed = matrix(NA, nrow=length(hoursElapsed), ncol=nrow(dt),
+        dimnames=list(hour=as.character(hoursElapsed), speed=as.character(dt$speed)))
+    for (hour in hoursElapsed)
+        mtxEnergyUsed[as.character(hour),] = signif(dt$kw * hour, 3)
+    
+    xlim = c(0, maxHoursElapsed)
+    xaxp = c(xlim, 12)
+    ymax = 10*ceiling(max(mtxEnergyUsed)/10)
+    ylim = c(0, ymax)
+    yaxp = c(ylim, ymax/5)
+    plot(NA, type='n', xlim=xlim, ylim=ylim, xaxp=xaxp, yaxp=yaxp, las=2, cex.main=ifelse(isPDF, 1.1, 1),
+        main=tprintf("Energy Used over Hours Elapsed at Speeds on Flat Road\n~description@"),
+        xlab="Total Elapsed Time (hours)",
+        ylab="Energy Used (KWh)")
+    par(xaxp=xaxp)
+    par(yaxp=yaxp)
+    grid(col="darkgray", lwd=0.5, lty="solid")
+    for (speed in colnames(mtxEnergyUsed))
+        {
+        lines(hoursElapsed, mtxEnergyUsed[, speed])
+        L = findSlope(hoursElapsed, mtxEnergyUsed[, speed], 0.8)
+        srt_deg = slopeToPlotAngle(L$slope)
+        adj = c(0.5, -0.2)
+        if (speed == colnames(mtxEnergyUsed)[1])
+            adj = c(0.5, 1.1)
+        text(L$midX, L$midY, epaste(speed, tprintf("*' ~speed@'")), srt=srt_deg, adj=adj)
+        }
+    }
+
+plotEvsHS()
+
+```
+
+I want to be able to quickly answer the question: If I drive at X mph and have Y % charge available, how far can I go?  Those three parameters can be plotted six different ways. The question might be worded differently: If I have X miles to drive and drive at Y mph, what % charge will I use? There are three different questions that can be asked. The third is: If I have X % charge available and I want to drive Y miles, how fast can I go? Any of the six graphs can answer any of the three questions, depending on how you use the graph. I want to figure out which question is most likely, and which plot is most useful. Time is also of importance, and it can be determined from any two of speed, distance travelled, and % charge used. So, there can be two sets of curves plotted, using two different colors for the curve sets. The curves allow you to see at a glance how one parameter (Y-axis) changes as another (X-axis) is changed. So, we need to decide which parameter will be X-axis, which will be Y-axis, and which two will be the sets of curves, out of these four parameters:
+    - Distance travelled D
+    - Total elapsed time T
+    - Speed S
+    - Percent charge used C
+
+If the X-axis is assigned to parameter x, Y-axis to parameter y, and the curve sets to parameters p1 and p2, then we require functions of this sort to compute the plotted curves:
+    y = f1(x, p1)
+    y = f2(x, p2)
+We know functions f() and g() that let us compute:
+    D = f(S, C)
+    T = g(S, C)
+We see that we don't have the necessary two different functions f1() and f2() whose second argument is a different parameter. An alternative is to use two Y-axes, on the left and right sides. In that case, the two sets of plotted curves would both use the same parameter to distinguish between each curve in the set. Then we COULD use our f() and g() functions. C could be assigned to the X-axis, D to the left-side Y-axis, and T to the right-side Y-axis, leaving S as the parameter that varies between each curve in each curve set. I don't really like that solution because I don't want to have two axes and I'd rather have the two sets of curves use different parameters to distinguish the curves. Ideally I'd like one set of curves to use D and the other to use T, so that S and C are on the X- and Y-axes respectively. But to do that we would need to invert f() and g():
+    C = f'(S, D)
+    C = g'(S, T)
+Unfortunately, the curves are not quite monotonic, see the points at 25, 30, and 35 mph in the first plot above. But, if we delete the 25 mph point, it IS monotonic, and the 25 mph point indicates that energy consumption per mile goes UP if you slow down too much, so it is safe to ignore that point anyway. So we can do the function inversion. But there is still a problem. We want the D and T values of the curves to be round numbers, not the oddball numbers they happen to be in the data. Here's how we can deal with the oddball numbers. The value of C directly scales the values of D and T. So, we use speed S from table for each S (X-axis), get the D and T for each S, then we can compute f'() and g'() as follows:
+    For D:
+        1. From the table we have distance and speed values d and S, where d is an oddball value, and this is for C = 100%
+        2. For an arbitrary C, the corresponding D is D = d*C/100
+        3. Likewise, for an arbitrary (non-oddball) value of D, the corresponding C is C = 100*D/d
+    For T:
+        1. From the table we have time and speed values t and S, where t is an oddball value, and this is for C = 100%
+        2. For an arbitrary C, the corresponding T is T = t*C/100
+        3. Likewise, for an arbitrary (non-oddball) value of T, the corresponding C is C = 100*T/t
+
+After making a plot with two separate sets of curves using two colors, I decided it was too crowded, so I changed it to make two separate plots.
+
+D is in the range 191 to 440 miles, and if C = 5% the lower end becomes about 9 miles.
+A nice set of D values for plotting would be seq(25, 400, by=25) = 18 curves.
+
+```{r fig.width=8.5, fig.height=5.5}
+# D = distance, S = speed, C = consumption
+plotDvsSC = function(isPDF=FALSE)
+    {
+    # Choose a nice set of distances for the multi-line battery plot with one line for each distance, then compute a matrix
+    # of battery used for each speed and distance. We want the shortest to be a trip of maybe 25 miles or 50 km and the maximum
+    # to be maybe about 80% of maxRange_axis rounded to a multiple of the shortest distance, and we want the spacing between
+    # them to be the same as the shortest distance.
+    minDist = ifelse(useMetricInPlots, 50, 25)
+    maxDist = minDist*ceiling(maxRange_axis*0.8/minDist)
+    dists = seq(minDist, maxDist, length.out=maxDist/minDist)
+    mtxBattery = matrix(NA, nrow=length(dt_batteryPlots$speed), ncol=length(dists),
+        dimnames=list(as.character(dt_batteryPlots$speed), as.character(dists)))
+    for (dist in dists)
+        mtxBattery[, as.character(dist)] = round(100*dist/dt_batteryPlots$range, 1)
+    mtxBattery[mtxBattery > 100] = NA
+    # Eliminate any column of mtxBattery that has fewer than 2 non-NA's.
+    ind = apply(mtxBattery, 2, function(V) sum(!is.na(V)) >= 2)
+    mtxBattery = mtxBattery[, ind]
+
+    xlim = c(minSpeed_batteryPlots, maxMeasuredSpeed_axis)
+    xaxp = c(xlim, nTicksSpeed_batteryPlots)
+    ylim = c(0, 100) # y-axis is battery fraction used, in percent
+    yaxp = c(ylim, 10)
+    svpar = par(mgp=par("mgp")-c(0.5,0,0))
+    plot(NA, type='n', xlim=xlim, ylim=ylim, xaxp=xaxp, yaxp=yaxp, las=1, cex.main=ifelse(isPDF, 1.1, 1),
+        main=tprintf("Battery Fraction Used at Speeds/Distances, ~description@"),
+        xlab=tprintf("Speed on Flat Road (~speed@)"),
+        ylab="Battery Fraction Used (%)")
+    mtext(tprintf("(assume battery degradation of ~batteryDegradation_pct@% for capacity of ~batteryCapacity_KWh@ KWh)"),
+        side=3, line=ifelse(isPDF, 0.6, 0.5), cex=0.9)
+    par(xaxp=xaxp)
+    par(yaxp=yaxp)
+    grid(col="darkgray", lwd=0.5, lty="solid")
+    for (dist in colnames(mtxBattery))
+        {
+        points(dt_batteryPlots$speed, mtxBattery[,dist], pch=20)
+        lines(dt_batteryPlots$speed, mtxBattery[,dist], lwd=1)
+        L = findSlope(dt_batteryPlots$speed, mtxBattery[,dist])
+        srt_deg = slopeToPlotAngle(L$slope)
+        text(L$midX, L$midY, epaste(dist, tprintf("*' ~distance@'")),
+            srt=srt_deg, adj=c(0.5, -0.2), cex=0.8)
+        }
+    par(svpar)
+    }
+
+plotDvsSC()
+
+```
+Now the same thing except plot elapsed time curves instead of distance curves.
+
+T is in the range 2.5 to 17.5 hours, and if C = 5% the lower end becomes about 1/8 hour.
+A nice set of T values for plotting would be seq(1, 16) = 16 curves.
+Actually, I don't like that. We want at least 30 minutes resolution. And 16 hours is way too much.
+How about seq(0.5, 10, by=0.5) = 20 curves. But after looking at it, we want 15-minute resolution below 3 hours, and
+only 1 hour resolution above 5 hours. Use c(seq(0.25, 3, by=0.25), seq(3.5, 5, by=0.5), seq(6, 10, by=1)) = 21 curves.
+
+```{r fig.width=8.5, fig.height=5.5}
+# T = hour, S = speed, C = consumption
+plotTvsSC = function(isPDF=FALSE)
+    {
+    # Choose a nice set of elapsed hours for multi-line battery plot with one line for each elapsed hours, then compute
+    # a matrix of battery used for each speed and elapsed hours. These have irregular spacing because it looks better on
+    # the plot.
+    elapsedHours = c(seq(0.25, 3, by=0.25), seq(3.5, 5, by=0.5), seq(6, 10, by=1))
+    mtxBattery = matrix(NA, nrow=length(dt_batteryPlots$speed), ncol=length(elapsedHours),
+        dimnames=list(as.character(dt_batteryPlots$speed), as.character(elapsedHours)))
+    for (hours in elapsedHours)
+        mtxBattery[, as.character(hours)] = round(100*hours/dt_batteryPlots$hours, 1)
+    mtxBattery[mtxBattery > 100] = NA
+    # Eliminate any column that has fewer than 2 non-NA's.
+    ind = apply(mtxBattery, 2, function(V) sum(!is.na(V)) >= 2)
+    mtxBattery = mtxBattery[, ind]
+
+    xlim = c(minSpeed_batteryPlots, maxMeasuredSpeed_axis)
+    xaxp = c(xlim, nTicksSpeed_batteryPlots)
+    ylim = c(0, 100) # y-axis is battery fraction used, in percent
+    yaxp = c(ylim, 10)
+    svpar = par(mgp=par("mgp")-c(0.5,0,0))
+    plot(NA, type='n', xlim=xlim, ylim=ylim, xaxp=xaxp, yaxp=yaxp, las=1, cex.main=ifelse(isPDF, 1.1, 1),
+        main=tprintf("Battery Fraction Used at Speeds/Times, ~description@"),
+        xlab=tprintf("Speed on Flat Road (~speed@)"),
+        ylab="Battery Fraction Used (%)")
+    mtext(tprintf("(assume battery degradation of ~batteryDegradation_pct@% for capacity of ~batteryCapacity_KWh@ KWh)"),
+        side=3, line=ifelse(isPDF, 0.6, 0.5), cex=0.9)
+    par(xaxp=xaxp)
+    par(yaxp=yaxp)
+    grid(col="darkgray", lwd=0.5, lty="solid")
+    for (hours in colnames(mtxBattery))
+        {
+        points(dt_batteryPlots$speed, mtxBattery[,hours], pch=20)
+        lines(dt_batteryPlots$speed, mtxBattery[,hours], lwd=1)
+        L = findSlope(dt_batteryPlots$speed, mtxBattery[,hours], 0.8)
+        srt_deg = slopeToPlotAngle(L$slope)
+        text(L$midX, L$midY, epaste(hours, "*' hrs'"), srt=srt_deg, adj=c(0.5, -0.2), cex=0.8)
+        }
+    par(svpar)
+    }
+
+plotTvsSC()
+
+```
+
+I'm thinking I want to plot the previous two a second time, swapping the X-axis and curve parameters.
+
+```{r fig.width=8.5, fig.height=5.5}
+# S = speed, D = distance, C = consumption
+plotSvsDC = function(isPDF=FALSE)
+    {
+    # Choose a nice x-axis upper limit for distance on the x-axis. Also choose a nice number of tick marks and grid
+    # lines.
+    maxDist = ifelse(useMetricInPlots, 700, 400)
+    nTicks = ifelse(useMetricInPlots, maxDist/50, maxDist/25)
+    
+    # Even though these are straight lines we are plotting, nevertheless compute them at many points so we can
+    # search those points for a good place to put the speed label, and so they will extend to the limit of 100%.
+    fineDists = seq(0, maxDist, by=5)
+    mtxBattery = matrix(NA, nrow=length(speeds_batteryPlots), ncol=length(fineDists),
+        dimnames=list(as.character(speeds_batteryPlots), as.character(fineDists)))
+    idxs = match(speeds_batteryPlots, dt_batteryPlots$speed)
+    for (dist in fineDists)
+        mtxBattery[, as.character(dist)] = round(100*dist/dt_batteryPlots$range[idxs], 1)
+    mtxBattery[mtxBattery > 100] = NA
+
+    xlim = c(0, maxDist)
+    xaxp = c(xlim, nTicks)
+    ylim = c(0, 100) # y-axis is battery fraction used, in percent
+    yaxp = c(ylim, 10)
+    svpar = par(mgp=par("mgp")-c(0.5,0,0))
+    plot(NA, type='n', xlim=xlim, ylim=ylim, xaxp=xaxp, yaxp=yaxp, las=2, cex.main=ifelse(isPDF, 1.1, 1),
+        main=tprintf("Battery Fraction Used at Distances/Speeds, ~description@"),
+        xlab=tprintf("Distance Travelled (~distance@)"),
+        ylab="Battery Fraction Used (%)")
+    mtext(tprintf("(assume battery degradation of ~batteryDegradation_pct@% for capacity of ~batteryCapacity_KWh@ KWh)"),
+        side=3, line=ifelse(isPDF, 0.6, 0.5), cex=0.9)
+    par(xaxp=xaxp)
+    par(yaxp=yaxp)
+    grid(col="darkgray", lwd=0.5, lty="solid")
+    for (speed in rownames(mtxBattery))
+        {
+        lines(fineDists, mtxBattery[speed,], lwd=1)
+        L = findSlope(fineDists, mtxBattery[speed,], 0.75)
+        srt_deg = slopeToPlotAngle(L$slope)
+        text(L$midX, L$midY, epaste(speed, tprintf("*' ~speed@'")), srt=srt_deg, adj=c(0.5, -0.2), cex=0.9)
+        }
+    par(svpar)
+    }
+
+plotSvsDC()
+
+```
+
+Now the same thing except X-axis is elapsed hours instead of distance.
+
+```{r fig.width=8.5, fig.height=5.5}
+# S = speed, T = hour, C = consumption
+plotSvsTC = function(isPDF=FALSE)
+    {
+    # Choose a nice x-axis upper limit for hours on the x-axis. Also choose a nice number of tick marks and grid
+    # lines.
+    maxHours = 9
+    nTicks = maxHours
+    
+    # Even though these are straight lines we are plotting, nevertheless compute them at many points so we can
+    # search those points for a good place to put the speed label, and so they will extend to the limit of 100%.
+    fineHours = seq(0, maxHours, by=0.01)
+    mtxBattery = matrix(NA, nrow=length(speeds_batteryPlots), ncol=length(fineHours),
+        dimnames=list(as.character(speeds_batteryPlots), as.character(fineHours)))
+    idxs = match(speeds_batteryPlots, dt_batteryPlots$speed)
+    for (hours in fineHours)
+        mtxBattery[, as.character(hours)] = round(100*hours*speeds_batteryPlots/dt_batteryPlots$range[idxs], 1)
+    mtxBattery[mtxBattery > 100] = NA
+
+    xlim = c(0, maxHours)
+    xaxp = c(xlim, nTicks)
+    ylim = c(0, 100) # y-axis is battery fraction used, in percent
+    yaxp = c(ylim, 10)
+    svpar = par(mgp=par("mgp")-c(0.5,0,0))
+    plot(NA, type='n', xlim=xlim, ylim=ylim, xaxp=xaxp, yaxp=yaxp, las=2, cex.main=ifelse(isPDF, 1.1, 1),
+        main=tprintf("Battery Fraction Used at Times/Speeds, ~description@"),
+        xlab="Elapsed Time (hours)",
+        ylab="Battery Fraction Used (%)")
+    mtext(tprintf("(assume battery degradation of ~batteryDegradation_pct@% for capacity of ~batteryCapacity_KWh@ KWh)"),
+        side=3, line=ifelse(isPDF, 0.6, 0.5), cex=0.9)
+    par(xaxp=xaxp)
+    par(yaxp=yaxp)
+    grid(col="darkgray", lwd=0.5, lty="solid")
+    for (speed in rownames(mtxBattery))
+        {
+        lines(fineHours, mtxBattery[speed,], lwd=1)
+        L = findSlope(fineHours, mtxBattery[speed,], 0.75)
+        srt_deg = slopeToPlotAngle(L$slope)
+        text(L$midX, L$midY, epaste(speed, tprintf("*' ~speed@'")), srt=srt_deg, adj=c(0.5, -0.2), cex=0.9)
+        }
+    par(svpar)
+    }
+
+plotSvsTC()
+
+```
+
+Plot Howard Johnson's DistPerUnitPrice (distance per unit currency)
+
+```{r fig.width=8.5, fig.height=5.5}
+# DPM = distance per money, S = speed
+plotDPMvsS = function(isPDF=FALSE)
+    {
+    xlim = c(0, maxMeasuredSpeed_axis)
+    xaxp = c(xlim, nTicksMeasuredSpeed_axis)
+    ylim_left = c(0, maxElectDistPerUnitPrice_left_axis)
+    yaxp_left = c(ylim_left, nTicksElectDistPerUnitPrice_left_axis)
+    ylim_right = c(0, maxDistPerUnitFossilFuel_right_axis_1)
+    yaxp_right = c(ylim_right, nTicksDistPerUnitFossilFuel_right_axis_1)
+    
+    # Y-axis scale factor. We want to plot DistPerUnitPrice on left side and distPerUnitFossilFuel on right side axes.
+    yscale_right = ylim_left[2]/ylim_right[2]
+
+    # Make the main plot.
+    svpar = par(mai=par("mai")+c(0,0,0.4,0.5), mgp=c(2.5, 1, 0))
+    plot(NA, type='n', xlim=xlim, ylim=ylim_left, xaxp=xaxp, yaxp=yaxp_left, las=2, cex.main=ifelse(isPDF, 1.1, 1.0),
+        main=tprintf("Distance as a Function of Energy Cost, ~description@"),
+        xlab=tprintf("Speed on Flat Road (~speed@)"),
+        ylab=tprintf("Distance per Energy Cost (~distPerCost@)"))
+
+    # Right-side y-axis.
+    label = pretty(ylim_right, yaxp_right[3])
+    at = label * yscale_right
+    axis(side=4, at=at, label=label, las=2)
+    mtext(tprintf("Fuel Consumption (~fuelEff@)"), side=4, line=2.5)
+
+    # List assumptions.
+    mtext(tprintf("(Assumptions:",
+        "  A: electricity cost ~currency@~avgElecCostPerKWh@/KWh (charging efficiency excluded)",
+        "  B: gasoline cost ~currency@~avgFuelCostPerUnitOfFuel@/~fuelVol@",
+        "\n",
+        "  C. fuel mileage ~fuelEfficiencyMax@ ~fuelEff@ at ~speedFor_fuelEfficiencyMax@ ~speed@ down 1 ~fuelEff@ every ",
+            "~speedChgPerLossOfOneUnitFuelEff@ ~speed@",
+        "  D: battery degradation of ~batteryDegradation_pct@% for capacity of ~batteryCapacity_KWh@ KWh)"),
+            side=3, line=0.5, cex=ifelse(isPDF, 0.8, 0.85))
+
+    # Grid.    
+    par(xaxp=xaxp)
+    par(yaxp=yaxp_left)
+    grid(col="darkgray", lwd=0.5, lty="solid")
+    
+    # Electricity and fuel DistPerUnitPrice at speeds.
+    points(dt$speed, dt$electDistPerUnitPrice, col=col_elect, pch=20)
+    lines(dt$speed, dt$electDistPerUnitPrice, col=col_elect, lty=lty_Miles, lwd=lwd_elect)
+    lines(dt$speed, dt$gasDistPerUnitPrice, col=col_fuel, lty=lty_Miles, lwd=lwd_fuel)
+
+    # Plotting distPerUnitFossilFuel means translating from the desired right-side y-axis to the left-side y-axis
+    # used in plotting.
+    distPerUnitFossilFuel = round(dt$distPerUnitFossilFuel * yscale_right, 1)
+    lines(dt$speed, distPerUnitFossilFuel, col=col_dist_per_fuel, lty=lty_dist_per_fuel, lwd=lwd_dist_per_fuel)
+    
+    coefs = apx$SpeedDPUP$ord1
+    abline(a=coefs$I, b=coefs$M, col=col_linear, lwd=lwd_linear, lty=lty_linear)
+
+    # Legend.
+    legend("topright",
+        legend=c(
+            "Electricity miles per dollar (DistPerUnitPrice)",
+            "Gas miles per dollar (DistPerUnitPrice)",
+            "Gas consumption (mpg, right-side axis)",
+            tprintf("Linear approximation: ", coefs$text)),
+        col=c(col_elect, col_fuel, col_dist_per_fuel, col_linear),
+        lwd=c(lwd_elect, lwd_fuel, lwd_dist_per_fuel, lwd_linear),
+        lty=c(lty_Miles, lty_Miles, lty_dist_per_fuel, lty_linear),
+        pch=c(20, NA, NA, NA),
+        seg.len=4, cex=0.7)
+    
+    par(svpar)
+    }
+
+plotDPMvsS()
+
+```
+
+Plot cost per big distance and per hour of driving, at different speeds, assuming a KWh price and a gasoline price and mileage.
+
+```{r fig.width=8.5, fig.height=5.5}
+# M = money, S = speed
+plotMvsS = function(isPDF=FALSE)
+    {
+    xlim = c(0, maxMeasuredSpeed_axis)
+    xaxp = c(xlim, nTicksMeasuredSpeed_axis)
+    ylim_left = c(0, maxCostForDistHours_left_axis)
+    yaxp_left = c(ylim_left, nTicksCostForDistHours_left_axis)
+    ylim_right = c(0, maxDistPerUnitFossilFuel_right_axis_2)
+    yaxp_right = c(ylim_right, nTicksDistPerUnitFossilFuel_right_axis_2)
+    
+    # Y-axis scale factor. We want to plot $ on left side and distPerUnitFossilFuel on right side axes.
+    yscale_right = ylim_left[2]/ylim_right[2]
+
+    # Make the main plot.
+    # Interestingly, mai at the top introduces space both above and below the title, while omi changes space above only.
+    # Both set the same amount of margin space, but the title is centered in the space specified by mai, while it is
+    # underneath the omi space. The mai and omi spaces add together. By default the omi space is 0 when plotting only
+    # one plot per page (on Quartz device anyway).
+    svpar = par(mai=par("mai")+c(0,0,0.4,0.5), mgp=c(2.5, 1, 0))
+    plot(NA, type='n', xlim=xlim, ylim=ylim_left, xaxp=xaxp, yaxp=yaxp_left, las=2, cex.main=ifelse(isPDF, 1.1, 1.0),
+        main=tprintf("Cost per Distance or Time, ~description@"),
+        xlab=tprintf("Speed on Flat Road (~speed@)"),
+        ylab=tprintf("Cost (~currency@)"))
+
+    # Right-side y-axis.
+    label = pretty(ylim_right, yaxp_right[3])
+    at = label * yscale_right
+    axis(side=4, at=at, label=label, las=2)
+    mtext(tprintf("Gas Consumption (~fuelEff@)"), side=4, line=2.5)
+
+    # List assumptions.
+    mtext(tprintf("(Assumptions:",
+        "  A: electricity cost ~currency@~avgElecCostPerKWh@/KWh (charging efficiency excluded)",
+        "  B: gasoline cost ~currency@~avgFuelCostPerUnitOfFuel@/~fuelVol@",
+        "\n",
+        "  C. fuel mileage ~fuelEfficiencyMax@ ~fuelEff@ at ~speedFor_fuelEfficiencyMax@ ~speed@ down 1 ~fuelEff@ every ",
+            "~speedChgPerLossOfOneUnitFuelEff@ ~speed@",
+        "  D: battery degradation of ~batteryDegradation_pct@% for capacity of ~batteryCapacity_KWh@ KWh)"),
+            side=3, line=0.5, cex=ifelse(isPDF, 0.8, 0.85))
+
+    # Grid.    
+    par(xaxp=xaxp)
+    par(yaxp=yaxp_left)
+    grid(col="darkgray", lwd=0.5, lty="solid")
+    
+    # Electricity and fuel costs at speeds for miles driven and time driven.
+    points(dt$speed, dt$electCostForDistance, col=col_elect, pch=20)
+    lines(dt$speed, dt$electCostForDistance, col=col_elect, lty=lty_Miles, lwd=lwd_elect)
+    lines(dt$speed, dt$gasCostForDist, col=col_fuel, lty=lty_Miles, lwd=lwd_fuel)
+    points(dt$speed, dt$electCostForHours, col=col_elect, pch=20)
+    lines(dt$speed, dt$electCostForHours, col=col_elect, lty=lty_Time, lwd=lwd_elect)
+    lines(dt$speed, dt$gasCostForHours, col=col_fuel, lty=lty_Time, lwd=lwd_fuel)
+
+    # Plotting distPerUnitFossilFuel means translating from the desired right-side y-axis to the left-side y-axis
+    # used in plotting.
+    distPerUnitFossilFuel = round(dt$distPerUnitFossilFuel * yscale_right, 1)
+    lines(dt$speed, distPerUnitFossilFuel, col=col_dist_per_fuel, lty=lty_dist_per_fuel, lwd=lwd_dist_per_fuel)
+    
+    # Legend.
+    legend("left",
+        legend=c(
+            tprintf(c("Gas", "Electricity"), " cost per ", energyCostDist, " ~distance@"),
+            tprintf(c("Gas", "Electricity"), " cost per ", ifelse(energyCostHours == 1, "driving hour",
+                paste0(energyCostHours, " driving hours"))),
+            tprintf("Gas consumption (~fuelEff@, right)")),
+        col=c(col_fuel, col_elect, col_fuel, col_elect, col_dist_per_fuel),
+        lty=c(lty_Miles, lty_Miles, lty_Time, lty_Time, lty_dist_per_fuel),
+        lwd=c(lwd_fuel, lwd_elect, lwd_fuel, lwd_elect, lwd_dist_per_fuel),
+        pch=c(NA, 20, NA, 20, NA), seg.len=4, cex=0.65)
+    
+    if (!isPDF)
+        par(svpar)
+    }
+
+plotMvsS()
+
+```
+
+Plot range vs speed at different grades uphill and downhill.
+
+```{r fig.width=8.5, fig.height=5.5}
+# R = range, S = speed, G = grade
+plotRvsSG = function(isPDF=FALSE)
+    {
+    # Road grades to plot. Note: -7% is off the chart.
+    grades = c(-6:3, 5, 7) # percent. I-80 over California's Sierra Nevada is 3% to 6%. ADA requires max 8.33% grade.
+
+    # Estimate flat-road range from linear approximation of range as a function of speed. Also convert this to miles for
+    # use by rangeAtGradeTestVehicle_in_mph_mi().
+    flatRanges = apx$SpeedRange$ord1$I + apx$SpeedRange$ord1$M*fineSpeeds
+    mine_to_mi = ifelse(useMetricInPlots, 1/km_per_mi, 1)
+    flatRanges_mi = flatRanges * mine_to_mi
+
+    # Make matrix of ranges, columns = grades, rows = fineSpeeds
+    mtxRange = matrix(NA, nrow=length(fineSpeeds), ncol=length(grades), dimnames=list(as.character(fineSpeeds),
+        as.character(grades)))
+    for (grade in grades)
+        mtxRange[, as.character(grade)] = round(rangeAtGradeTestVehicle_in_mph_mi(fineSpeeds_mph, flatRanges_mi, grade), 1)/mine_to_mi
+
+    xlim = c(minFineSpeed, maxFineSpeed)
+    xaxp = c(xlim, nTicksFineSpeed)
+    ylim = c(minRange_log, maxRange_log)
+    yaxp = c(1, 4, 3)
+
+    # But how will we deal with negative ranges? Let's suppress all of them. Change them to NA. Also change any
+    # > maxPlottedRange_log to NA.
+    mtxRange[mtxRange < 0 | mtxRange > maxPlottedRange_log] = NA
+
+    svpar = par(mai=par("mai")+c(0,0.25,0.25,0), mgp=c(3.25,1,0))
+    plot(NA, type='n', xlim=xlim, ylim=ylim, xaxp=xaxp, yaxp=yaxp, ylog=TRUE, log="y", las=2, cex.main=0.9,
+        main=tprintf("Estimated Range At Uphill/Downhill Grades and Speeds, ~description@"),
+        xlab=tprintf("Speed (~speed@)"),
+        ylab=tprintf("Range of Full Battery (~distance@)"))
+    coefs = apx$SpeedRange$ord1
+    mtext(tprintf("Assumptions:",
+        "  A: weight ~vehicleWeight@ ~weight@ (with ~passengerWeight@ ~weight@ passenger weight)",
+        "  B: regen efficiency ~regenEfficiency_pct@%",
+        "\n",
+        "  C: battery degradation ~batteryDegradation_pct@% for capacity of ~batteryCapacity_KWh@ KWh",
+        "  D: flat road linear range approximation = ", coefs$text),
+        side=3, line=0.5, cex=0.8)
+    par(xaxp=xaxp)
+    par(yaxp=yaxp)
+    grid(col="darkgray", lwd=0.5, lty="solid", equilogs=FALSE)
+    for (grade in grades)
+        {
+        ranges = round(mtxRange[, as.character(grade)], 1)
+        lines(fineSpeeds, ranges, lwd=2)
+        i = which.max(ranges)
+        x = fineSpeeds[i]
+        y = ranges[i]
+        G = grade
+        S = paste0(G, "% grade up")
+        if (G == 0)
+            S = "flat road"
+        else if (G < 0)
+            S = paste0(-G, "% grade down")
+        adj = c(0, -0.3)
+        if (x != minFineSpeed)
+            adj = c(1, 1.4)
+        if (grade == -5)
+            adj = c(0.5, -0.7)
+        else if (grade == -6)
+            adj = c(-0.1, 1.4)
+        text(x, y, S, srt=0, adj=adj, cex=0.7)
+        }
+    text(minFineSpeed, maxPlottedRange_log, "Above here rapidly approaches net CHARGING of battery", adj=c(0,-0.3), cex=0.7)
+    par(svpar)
+    }
+
+plotRvsSG()
+```
+
+Plot power vs speed at different temperatures/elevations as those affect drag.
+
+```{r fig.width=8.5, fig.height=5.5}
+# P = power, S = speed, AIR = air density
+plotPvsS_AIR = function(isPDF=FALSE)
+    {
+    airConditionsAndSpeeds = list()
+    
+    # Compute power required to overcome drag under different conditions, and also convert air condition units from the
+    # ones they are expressed in to the ones being used to plot.
+    for (cond in names(airConditionsToPlot))
+        {
+        L = list()
+        airCondition = airConditionsToPlot[[cond]]
+        elev_ft = airCondition$elev * ifelse(basicDataUnits_metric, 1/m_per_ft, 1)
+        L$elev = elev_ft * ifelse(useMetricInPlots, m_per_ft, 1)
+        temp_degF = ifelse(basicDataUnits_metric, degC_to_degF(airCondition$temp), airCondition$temp)
+        L$temp = ifelse(useMetricInPlots, degF_to_degC(temp_degF), temp_degF)
+        pres_inHg = airCondition$pres * ifelse(basicDataUnits_metric, 1/hPa_per_inHg, 1)
+        # Convert pressure to a string now because we prefer to show two digits after dp in imperial and none in metric
+        L$pres = ifelse(useMetricInPlots, sprintf("%5.0f", round(pres_inHg*hPa_per_inHg)), sprintf("%5.2f", pres_inHg))
+        DA_ft = DAft_in_ft_degF_inHg(elev_ft, temp_degF, pres_inHg)
+        rho = rhoMetric_in_DAft(DA_ft)
+        L$power = dragPowerKwTestVehicle_in_mph_metric(fineSpeeds_mph, rho)
+        names(L$power) = as.character(fineSpeeds)
+        airConditionsAndSpeeds[[cond]] = L
+        }
+
+    # Get percent that is drag at 100 km/h
+    curUnits_100kmph = round(ifelse(useMetricInPlots, 100, 100/kmph_per_mph), 1)
+    curUnits_100kmph = as.character(curUnits_100kmph)
+    pct = round(100*airConditionsAndSpeeds$testCond$power[curUnits_100kmph]/totalPower_testConditions[curUnits_100kmph])
+
+    # Make the plot.
+    xlim = c(minFineSpeed, maxFineSpeed)
+    xaxp = c(xlim, nTicksFineSpeed)
+    ylim = c(0, 50)
+    yaxp = c(ylim, 10)
+
+    svpar = par(mai=par("mai")+c(0,0,0.75,0), mgp=c(2.5, 1, 0))
+    plot(NA, type='n', xlim=xlim, ylim=ylim, xaxp=xaxp, yaxp=yaxp, las=2, cex.main=ifelse(isPDF, 1.1, 1.0),
+        main=tprintf("Drag Power Consumption at Speeds, ~description@"),
+        xlab=tprintf("Speed on Flat Road (~speed@)"),
+        ylab="Power Consumption (kilowatts)")
+    coefs = apx$SpeedPower$ord3
+    mtext(tprintf("Assumptions:",
+        "  A: weight ~vehicleWeight@ ~weight@ (with ~passengerWeight@ ~weight@ passenger weight)",
+        "  B: drag coefficient ~coefDrag@",
+        "  C: frontal area ~frontalArea@ ~area@",
+        "\n",
+        "  D: power approximation ", coefs$text,
+        "  E: test conditions temp and barometer estimated post-facto",
+        "\n",
+        "  F: air density computed using density altitude",
+        "  G: drag is ", pct, "% of total at 100 km/h vs 55% expected from a forum"),
+        side=3, line=0.75, cex=ifelse(isPDF, 0.8, 0.85))
+    par(xaxp=xaxp)
+    par(yaxp=yaxp)
+    grid(col="darkgray", lwd=0.5, lty="solid")
+    lines(fineSpeeds, totalPower_testConditions, lwd=3, lty="solid")
+    lines(fineSpeeds, baselinePower, lwd=3, lty="dotted")
+    for (cond in names(airConditionsToPlot))
+        {
+        dragKw = airConditionsAndSpeeds[[cond]]$power
+        totalKw = dragKw + baselinePower
+        col = airConditionsToPlot[[cond]]$col
+        lines(fineSpeeds, dragKw, col=col, lwd=1, lty="solid")
+        #lines(fineSpeeds, totalKw, col=col, lwd=2, lty="solid")
+        }
+
+    # Make the legend.
+    txt = c("Total power under test conditions", "Power excluding drag")
+    col = c("black", "black")
+    for (cond in names(airConditionsToPlot))
+        {
+        airCondition = airConditionsToPlot[[cond]]
+        L = airConditionsAndSpeeds[[cond]]
+        txt = c(txt, sprintf("%-15s  %4.0f %s  %3.0f %s  %s %s",
+            airCondition$desc, L$elev, unitsTable$elev, L$temp, unitsTable$temp, L$pres, unitsTable$pres))
+        col = c(col, airCondition$col)
+        }
+    family = par("family")
+    par(family="mono")
+    N = length(airConditionsAndSpeeds)
+    legend("topleft", txt, col=col, lwd=c(3, 3, rep(1, N)), lty=c("solid", "dotted", rep("solid", N)), cex=0.75)
+    par(family=family)
+    par(svpar)
+    }
+
+plotPvsS_AIR()
+```
+
+Plot energy per mile vs speed at different wind speeds as wind affects drag.
+
+```{r fig.width=8.5, fig.height=5.5}
+# E = energy, S = speed, WIND = wind speed
+plotEvsS_WIND = function(isPDF=FALSE)
+    {
+    # Compute energy/mile required at different wind speeds, by adding computed drag to baseline power then dividing by speed.
+    DA_ft = DAft_in_ft_degF_inHg(basicData_imperial$elevation, basicData_imperial$temperature, basicData_imperial$barometer)
+    rho = rhoMetric_in_DAft(DA_ft)
+    mtx = matrix(NA, nrow=length(windSpeeds), ncol=length(fineSpeeds),
+        dimnames=list(as.character(windSpeeds), as.character(fineSpeeds)))
+    for (windSpeed in as.character(windSpeeds))
+        {
+        airSpeeds_mph = fineSpeeds_mph + windSpeeds_mph[windSpeed]
+        totalPowerKw = baselinePower + dragPowerKwTestVehicle_in_mph_metric(airSpeeds_mph, rho)
+        mtx[windSpeed,] = 1000*totalPowerKw/fineSpeeds
+        }
+
+    # Make the plot.
+    xlim = c(minFineSpeed, maxFineSpeed)
+    xaxp = c(xlim, nTicksFineSpeed)
+    ylim = c(0, ifelse(useMetricInPlots, 500, 800))
+    yaxp = c(ylim, ylim[2]/100)
+
+    svpar = par(mai=par("mai")+c(0,0.25,0.5,0), mgp=c(3, 1, 0))
+    plot(NA, type='n', xlim=xlim, ylim=ylim, xaxp=xaxp, yaxp=yaxp, las=2, cex.main=ifelse(isPDF, 1.1, 1.0),
+        main=tprintf("Energy Consumption at Car and Wind Speeds, ~description@"),
+        xlab=tprintf("Speed on Flat Road (~speed@)"),
+        ylab=tprintf("Energy Consumption (watt-hours per ~distance@)"))
+    coefs = apx$SpeedPower$ord3
+    mtext(tprintf("Assumptions:",
+        "  A: weight ~vehicleWeight@ ~weight@ (with ~passengerWeight@ ~weight@ passenger weight)",
+        "  B: drag coefficient ~coefDrag@",
+        "  C: frontal area ~frontalArea@ ~area@",
+        "\n",
+        "  D: power approximation ", coefs$text,
+        "\n",
+        "  E: air density computed using density altitude"),
+        side=3, line=0.4, cex=0.8)
+    par(xaxp=xaxp)
+    par(yaxp=yaxp)
+    grid(col="darkgray", lwd=0.5, lty="solid")
+    for (windSpeed in windSpeeds)
+        {
+        lines(fineSpeeds, mtx[as.character(windSpeed),], lwd=1)
+        L = findSlope(fineSpeeds, mtx[as.character(windSpeed),], 1)
+        srt_deg = slopeToPlotAngle(L$slope)
+        text(L$rightX*1.015, L$rightY, windSpeed, srt=srt_deg, adj=c(0.5, 0), cex=ifelse(isPDF, 0.75, 0.8))
+        if (windSpeed == windSpeeds[1])
+            {
+            text(L$leftX, L$leftY, "tailwinds", srt=srt_deg, adj=c(1, 1.2), cex=0.8)
+            text(L$rightX, L$rightY, tprintf("~speed@"), adj=c(0.3, 2), cex=0.8)
+            }
+        else if (windSpeed == windSpeeds[length(windSpeeds)])
+            text(L$leftX, L$leftY, "headwinds", srt=srt_deg, adj=c(1, -0.5), cex=0.8)
+        }
+    par(svpar)
+    }
+
+plotEvsS_WIND()
+```
+
+Plot power vs speed at different wind speeds as wind affects drag.
+
+```{r fig.width=8.5, fig.height=5.5}
+# P = power, S = speed, WIND = wind speed
+plotPvsS_WIND = function(isPDF=FALSE)
+    {
+    # Compute total power required at different wind speeds, by adding computed drag to baseline power.
+    DA_ft = DAft_in_ft_degF_inHg(basicData_imperial$elevation, basicData_imperial$temperature, basicData_imperial$barometer)
+    rho = rhoMetric_in_DAft(DA_ft)
+    mtx = matrix(NA, nrow=length(windSpeeds), ncol=length(fineSpeeds),
+        dimnames=list(as.character(windSpeeds), as.character(fineSpeeds)))
+    for (windSpeed in as.character(windSpeeds))
+        {
+        airSpeeds_mph = fineSpeeds_mph + windSpeeds_mph[windSpeed]
+        totalPowerKw = baselinePower + dragPowerKwTestVehicle_in_mph_metric(airSpeeds_mph, rho)
+        mtx[windSpeed,] = totalPowerKw
+        }
+
+    # Make the plot.
+    xlim = c(minFineSpeed, maxFineSpeed)
+    xaxp = c(xlim, nTicksFineSpeed)
+    ylim = c(0, 80)
+    yaxp = c(ylim, 16)
+
+    svpar = par(mai=par("mai")+c(0,0,0.5,0), mgp=c(2.5, 1, 0))
+    plot(NA, type='n', xlim=xlim, ylim=ylim, xaxp=xaxp, yaxp=yaxp, las=2, cex.main=ifelse(isPDF, 1.1, 1.0),
+        main=tprintf("Power Consumption at Car and Wind Speeds, ~description@"),
+        xlab=tprintf("Speed on Flat Road (~speed@)"),
+        ylab="Power Consumption (kilowatts)")
+    coefs = apx$SpeedPower$ord3
+    mtext(tprintf("Assumptions:",
+        "  A: weight ~vehicleWeight@ ~weight@ (with ~passengerWeight@ ~weight@ passenger weight)",
+        "  B: drag coefficient ~coefDrag@",
+        "  C: frontal area ~frontalArea@ ~area@",
+        "\n",
+        "  D: power approximation ", coefs$text,
+        "\n",
+        "  E: air density computed using density altitude"),
+        side=3, line=0.4, cex=0.8)
+    par(xaxp=xaxp)
+    par(yaxp=yaxp)
+    grid(col="darkgray", lwd=0.5, lty="solid")
+    for (windSpeed in windSpeeds)
+        {
+        lines(fineSpeeds, mtx[as.character(windSpeed),], lwd=1)
+        L = findSlope(fineSpeeds, mtx[as.character(windSpeed),], 1)
+        srt_deg = slopeToPlotAngle(L$slope)
+        text(L$rightX*1.015, L$rightY, windSpeed, srt=srt_deg, adj=c(0.5, 0), cex=ifelse(isPDF, 0.75, 0.8))
+        if (windSpeed == windSpeeds[1])
+            {
+            text(L$leftX, L$leftY, "tailwinds", srt=srt_deg, adj=c(1, 1.2), cex=0.8)
+            text(L$rightX, L$rightY, tprintf("~speed@"), adj=c(0.3, 2), cex=0.8)
+            }
+        else if (windSpeed == windSpeeds[length(windSpeeds)])
+            text(L$leftX, L$leftY, "headwinds", srt=srt_deg, adj=c(1, -0.5), cex=0.8)
+        }
+    par(svpar)
+    }
+
+plotPvsS_WIND()
+```
+
+Plot range vs speed at different wind speeds as wind affects drag.
+
+```{r fig.width=8.5, fig.height=5.5}
+# R = range, S = speed, WIND = wind speed
+plotRvsS_WIND = function(isPDF=FALSE)
+    {
+    # Compute range at different wind speeds. Get power at each speed by adding computed drag to baseline power.
+    DA_ft = DAft_in_ft_degF_inHg(basicData_imperial$elevation, basicData_imperial$temperature, basicData_imperial$barometer)
+    rho = rhoMetric_in_DAft(DA_ft)
+    mtx = matrix(NA, nrow=length(windSpeeds), ncol=length(fineSpeeds), dimnames=list(as.character(windSpeeds),
+        as.character(fineSpeeds)))
+    for (windSpeed in as.character(windSpeeds))
+        {
+        airSpeeds_mph = fineSpeeds_mph + windSpeeds_mph[windSpeed]
+        totalPowerKw = baselinePower + dragPowerKwTestVehicle_in_mph_metric(airSpeeds_mph, rho)
+        mtx[windSpeed,] = round(basicData_plot$batteryCapacity_KWh*fineSpeeds/totalPowerKw)
+        }
+
+    # Make the plot.
+    xlim = c(minFineSpeed, maxFineSpeed)
+    xaxp = c(xlim, nTicksFineSpeed)
+    ylim = c(0, ifelse(useMetricInPlots, 800, 500))
+    yaxp = c(ylim, ylim[2]/50)
+    svpar = par(mai=par("mai")+c(0,0.15,0.5,0.25), mgp=c(3, 1, 0))
+    plot(NA, type='n', xlim=xlim, ylim=ylim, xaxp=xaxp, yaxp=yaxp, las=2, cex.main=ifelse(isPDF, 1.1, 1.0),
+        main=tprintf("Range at Car and Wind Speeds, ~description@"),
+        xlab=tprintf("Speed on Flat Road (~speed@)"),
+        ylab=tprintf("Range of Full Battery (~distance@)"))
+    coefs = apx$SpeedPower$ord3
+    mtext(tprintf("Assumptions:",
+        "  A: weight ~vehicleWeight@ ~weight@ (with ~passengerWeight@ ~weight@ passenger weight)",
+        "  B: drag coefficient ~coefDrag@",
+        "  C: frontal area ~frontalArea@ ~area@",
+        "\n",
+        "  D: power approximation ", coefs$text,
+        "  E: battery degradation ~batteryDegradation_pct@% for capacity of ~batteryCapacity_KWh@ KWh",
+        "\n",
+        "  F: air density computed using density altitude"),
+        side=3, line=0.4, cex=0.8)
+    par(xaxp=xaxp)
+    par(yaxp=yaxp)
+    grid(col="darkgray", lwd=0.5, lty="solid")
+    for (windSpeed in windSpeeds)
+        {
+        lines(fineSpeeds, mtx[as.character(windSpeed),], lwd=1)
+        L = findSlope(fineSpeeds, mtx[as.character(windSpeed),], 0.425)
+        srt_deg = slopeToPlotAngle(L$slope)
+        if (windSpeed == 0)
+            S = "No wind"
+        else if (windSpeed > 0)
+            S = tprintf(windSpeed, " ~speed@ headwind")
+        else
+            S = tprintf(-windSpeed, " ~speed@ tailwind")
+        text(L$midX, L$midY, S, srt=srt_deg, adj=c(0.5, -0.3), cex=ifelse(isPDF, 0.65, 0.8))
+        }
+    par(svpar)
+    }
+
+plotRvsS_WIND()
+```
+
+Make a text page at start of PDF file to tell reader my email address and announce GNU license.
+
+```{r fig.width=12, fig.height=10}
+plotText = function(txt, justify="center", cex=1)
+    {
+    x = switch(justify,
+        "left" = 0,
+        "center" = 0.5,
+        "right" = 1)
+    adjx = switch(justify,
+        "left" = 0,
+        "center" = 0.5,
+        "right" = 1)
+    svpar = par(mai=par("mai")+c(0,-0.5,0,-0.1))
+    plot(NA, type='n', xlim=0:1, ylim=0:1, axes=FALSE, main="", xlab="", ylab="")
+    text(x, 0.5, txt, adj=c(adjx, 0.5), cex=cex)
+    par(svpar)
+    }
+
+plotHeader = function(cex=1)
+    {
+    plotText(paste(
+        paste0("These plotted curves to show, from various perspectives, the battery range of a\n",
+        basicData_plot$description), ".\n",
+        "\n",
+        "The data for these is obtained by driving the car back and forth on a fairly flat road\n",
+        "multiple times, at different speeds, and recording the energy usage as shown by the car,\n",
+        "in watt-hours per unit distance travelled. This data is shown on one of the plots.\n",
+        "\n",
+        "If some plots indicate a battery degradation, this is obtained from known or tested car\n",
+        "battery degradation.\n",
+        "\n",
+        "If you have questions or concerns about any of the plots, you can contact me on various\n",
+        "online groups or at ted@tedtoal.net\n",
+        "\n",
+        "-----------\n",
+        "Copyright (C) 2024  Ted Toal\n",
+        "\n",
+        "This program is free software: you can redistribute it and/or modify it under the terms of\n",
+        "the GNU General Public License as published by the Free Software Foundation, either version\n",
+        "3 of the License, or (at your option) any later version.\n",
+        "\n",
+        "This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;\n",
+        "without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR\n",
+        "PURPOSE. See the GNU General Public License for more details.\n",
+        "\n",
+        "You should have received a copy of the GNU General Public License along with this program.\n",
+        "If not, see <https://www.gnu.org/licenses/>.\n",
+        "\n",
+        "The author, Ted Toal, can be contacted via email at ted@tedtoal.net\n",
+        "-----------\n",
+        sep=""), justify="left", cex=cex)
+    }
+
+plotHeader()
+```
+
+Plot all of the above plots to a PDF file, multiple plots per page.
+
+```{r fig.width=12, fig.height=10}
+fn = file.path(basicData_plot$pdfDirectory,
+    paste0(basicData_plot$pdfAllPlotsFilename, ifelse(useMetricInPlots, "_metric", "_imperial"),
+        ifelse(useBWcolors, "_gray", "_colors"), ".pdf"))
+pdf(fn, width=8.5, height=11, bg="white")
+plotHeader(cex=0.8)
+plotText("(Intentionally blank)")
+par(omi=par("omi")+c(0.2, 0.15, 0.15, 0.05))
+
+# Something is wrong with mgi restoration, functions save the returned par() value when changing mgi and restore it when
+# finished, but it doesn't restore, for PDF plots only. By saving par() values before calling each page-full of plot functions
+# and then restoring the values before moving on to the next page, this fixes the problem. One way you see that is that mtext()
+# line number for below-title text can be the same now for both regular and PDF plotting.
+
+par(mfrow=c(3,1))
+svpar = getParSettable()
+plotEvsS(TRUE)
+plotPvsS(TRUE)
+plotRvsS(TRUE)
+par(svpar)
+
+par(mfrow=c(1,1))
+svpar = getParSettable()
+plotEvsHS(TRUE)
+par(svpar)
+
+par(mfrow=c(2,1))
+svpar = getParSettable()
+plotDvsSC(TRUE)
+plotTvsSC(TRUE)
+par(svpar)
+plotSvsDC(TRUE)
+plotSvsTC(TRUE)
+par(svpar)
+plotDPMvsS(TRUE)
+plotMvsS(TRUE)
+par(svpar)
+plotRvsSG(TRUE)
+plotPvsS_AIR(TRUE)
+par(svpar)
+plotEvsS_WIND(TRUE)
+plotPvsS_WIND(TRUE)
+par(svpar)
+plotRvsS_WIND(TRUE)
+par(svpar)
+
+dev.off()
+```
+
+Plot only the range plots to a PDF file, multiple plots per page.
+
+```{r fig.width=12, fig.height=10}
+fn = file.path(basicData_plot$pdfDirectory,
+    paste0(basicData_plot$pdfSomePlotsFilename, ifelse(useMetricInPlots, "_metric", "_imperial"),
+        ifelse(useBWcolors, "_gray", "_colors"), ".pdf"))
+pdf(fn, width=8.5, height=11, bg="white")
+plotHeader(cex=0.8)
+plotText("(Intentionally blank)")
+par(omi=par("omi")+c(0.2, 0.15, 0.15, 0.05))
+
+par(mfrow=c(2,1))
+svpar = getParSettable()
+plotRvsS(TRUE)
+plotRvsSG(TRUE)
+par(svpar)
+plotDvsSC(TRUE)
+plotTvsSC(TRUE)
+par(svpar)
+plotSvsDC(TRUE)
+plotSvsTC(TRUE)
+par(svpar)
+plotDPMvsS(TRUE)
+plotMvsS(TRUE)
+par(svpar)
+plotRvsS_WIND(TRUE)
+par(svpar)
+
+dev.off()
+```
+
+End of file.
+
