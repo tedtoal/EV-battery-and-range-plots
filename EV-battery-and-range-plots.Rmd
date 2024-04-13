@@ -29,6 +29,9 @@ This file is opened and run from the app named RStudio. To install it, first ins
 Then, install the free version of RStudio, available from:
         https://posit.co/download/rstudio-desktop/      (scroll down the page and find your system)
 
+Also, edit files ENV_VARS.txt and Include_Customizations.R with a text editor and change the paths from my own to the place
+where you installed these files.
+
 To run this you can simply select "Run All" from the Run drop-down menu, but first make sure that you have set the first three variables immediately below as you want.
 
 The first code chunk here contains values to be set by the user to control the input directory and output characteristics.
