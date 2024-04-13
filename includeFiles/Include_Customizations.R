@@ -28,8 +28,10 @@ cat("Including Include_Customizations.R\n")
 # specified default value and issues a warning message.
 #######################################################################################
 
-LocalRootDir = getEnvirVar("LOCAL_ROOT", default="~/Documents/Tesla/EV-battery-and-range-plots",
-    shortDesc="a path", longDesc="the root path to most data")
+LocalRootDir = sub(paste(PATHSEP, "includeFiles", sep=""), "",
+    getEnvirVar("RSOURCEPATH",
+        default=file.path("~", "Documents", "Tesla", "EV-battery-and-range-plots"),
+        shortDesc="a path", longDesc="the root path to most data"), fixed=TRUE)
 
 #######################################################################################
 # Define variables containing paths to important folders located as subfolders of one
