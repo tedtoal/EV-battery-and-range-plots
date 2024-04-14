@@ -18,3 +18,5 @@ To run this code:
 6. Run the code by selecting "Run All" from the Run drop-down menu. The first time it is run, it may install some R packages, but if so, this should only occur one time.
 7. Scroll down through the file to view the plots. Check the directory where you unzipped the files for new PDF files containing plots.
 8. Follow instructions in comments in the code to change it for a different EV. You must be able to measure watt-hours/mile at different speeds.
+
+Contact me by email at ted@tedtoal.net with questions, comments, suggests, bugs, etc.  Or do the usual git stuff and I'll try to watch for pull requests or issue reports.
