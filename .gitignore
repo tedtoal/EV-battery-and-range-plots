@@ -51,6 +51,9 @@ rsconnect/
 # PDF files
 *.pdf
 
+# PNG files
+*.png
+
 # Excel files.
 *.xlsx
 

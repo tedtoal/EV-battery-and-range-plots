@@ -1131,11 +1131,13 @@ plotCD_EDvsS = function(isPDF=FALSE)
     lines(dt$speed, yscale_Wh_to_BatteryPct_PerUnitDistance*dt$WhPerUnitDistance_dir1, lwd=2, lty="dotted", col="gray")
     
     coefs1 = apx$SpeedEnergyUsed$ord1
-    abline(a=coefs1$I, b=coefs1$M, col=col_linear, lwd=lwd_linear, lty=lty_linear)
+    intercept = yscale_Wh_to_BatteryPct_PerUnitDistance*coefs1$I
+    slope = yscale_Wh_to_BatteryPct_PerUnitDistance*coefs1$M
+    abline(a=intercept, b=slope, col=col_linear, lwd=lwd_linear, lty=lty_linear)
     
     coefs2 = apx$SpeedEnergyUsed$ord2
     x = seq(xlim[1], xlim[2]+10, length.out=50)
-    y = coefs2$C+(coefs2$A*x+coefs2$B)*x/coefs2$divisor
+    y = yscale_Wh_to_BatteryPct_PerUnitDistance*(coefs2$C+(coefs2$A*x+coefs2$B)*x/coefs2$divisor)
     lines(x, y, col=col_nonlinear, lwd=lwd_nonlinear, lty=lty_nonlinear)
 
     legend("topleft",
