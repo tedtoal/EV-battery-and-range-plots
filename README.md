@@ -1,6 +1,8 @@
 # EV-battery-and-range-plots
 R program for plotting EV energy/mile at different speeds, and derived plots
 
+#### V4 release 7-Aug-2024: added charge power and charge time plots; added additional y-axes on right side of some plots.
+
 To run this code:
 
 1. In GitHub, choose the Code dropdown and download the zip file for this project. Unzip it into a convenient directory.
