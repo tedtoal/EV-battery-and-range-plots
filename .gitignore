@@ -50,3 +50,7 @@ rsconnect/
 
 # PDF files
 *.pdf
+
+# Excel files.
+*.xlsx
+
