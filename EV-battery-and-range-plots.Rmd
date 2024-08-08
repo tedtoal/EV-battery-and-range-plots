@@ -2329,7 +2329,7 @@ plotText = function(txt, justify="center", cex=1)
 plotHeader = function(cex=1)
     {
     plotText(paste(
-        paste0("These plotted curves to show, from various perspectives, the battery range of a\n",
+        paste0("These plotted curves show, from various perspectives, the battery range of a\n",
         basicData_plot$description), ".\n",
         "\n",
         "The data for these is obtained by driving the car back and forth on a fairly flat road\n",
