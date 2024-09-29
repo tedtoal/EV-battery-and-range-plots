@@ -59,6 +59,22 @@ numBytes.to.human = function(numBytes, digits=2, sep=" ")
     }
 
 #######################################################################################
+# Get settable par() values. Some values are not settable and give a warning if you try
+# to set them.
+#######################################################################################
+getParSettable = function()
+    {
+    svpar = par()
+    svpar$cin = NULL
+    svpar$cra = NULL
+    svpar$csi = NULL
+    svpar$cxy = NULL
+    svpar$din = NULL
+    svpar$page = NULL
+    return(svpar)
+    }
+
+#######################################################################################
 # Call cat() with the arguments, followed by flush.console() to ensure immediate output
 # of the data.  Use this instead of cat() when long computations occur and you want to
 # print something just before doing the computation.

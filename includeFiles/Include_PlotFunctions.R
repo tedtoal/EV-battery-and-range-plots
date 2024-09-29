@@ -27,20 +27,200 @@ getStars = function(P) { sapply(P, function(p) { if (is.na(p)) return(""); retur
 #######################################################################################
 # If you have the slope of a plotted line and you wish to know the angle corresponding
 # to that slope ON THE PLOT, this function computes that. It is not simply atan(slope)
-# because the scale of the X and Y axes may differ.
+# because the scale of the X and Y axes may differ. THIS WORKS ONLY FOR NON-LOG AXES!
 #
 # Arguments:
-#   m: slope value (dy/dx) for which you want an angle.
+#   m: slope value (dy/dx) for which you want an angle. May be a vector.
+#   asDegrees: FALSE to return radians (+/- pi), TRUE for degrees (+/- 180).
 #
-# Returns: angle IN DEGREES on the current plot, corresponding to slope m.
+# Returns: angle(s) corresponding to slope(s) m.
 #######################################################################################
-slopeToPlotAngle = function(m)
+slopeToPlotAngle = function(m, asDegrees=TRUE)
     {
     usr = par("usr")
     plotdim = par("pin")
     ymult = (usr[2]-usr[1])/(usr[4]-usr[3]) * plotdim[2]/plotdim[1]
-    ang = atan2(m*ymult, 1)*180/pi
+    ang = atan2(m*ymult, 1)
+    if (asDegrees)
+        ang = ang*180/pi
     return(ang)
+    }
+
+#######################################################################################
+# Like slopeToPlotAngle, but takes (x, y) points as arguments and returns the slope at
+# each adjacent set of points, and it also works when one or both axes are log-scale.
+#
+# Arguments:
+#   x: vector of x-coords of 2 or more points on plot.
+#   y: vector of y-coords of 2 or more points on plot, same length as x.
+#   asDegrees: FALSE to return radians (+/- pi), TRUE for degrees (+/- 180).
+#
+# Returns: vector of angles made by lines connecting adjacent (x,y) points on
+# the current plot, of length length(x)-1.
+#######################################################################################
+slopeToPlotAngleXY = function(x, y, asDegrees=TRUE)
+    {
+    if (length(x) != length(y))
+        stop("slopeToPlotAngleXY requires x and y to be the same length")
+    if (length(x) < 2)
+        stop("slopeToPlotAngleXY requires x and y length to be > 1")
+    xlog = par("xlog")
+    ylog = par("ylog")
+    usr = par("usr")
+    plotdim = par("pin")
+    if (xlog)
+        x = log10(x)
+    if (ylog)
+        y = log10(y)
+    dx = diff(x)
+    dy = diff(y)
+    m = dy/dx
+    ymult = (usr[2]-usr[1])/(usr[4]-usr[3]) * plotdim[2]/plotdim[1]
+    ang = atan2(m*ymult, 1)
+    if (asDegrees)
+        ang = ang*180/pi
+    return(ang)
+    }
+
+#######################################################################################
+# Find slope of line defined by the two non-NA points in (x, y) whose index in x and y is
+# defined by arguments 'mode', 'f', and 'fWiden':
+#   mode    description
+#   ----    -----------
+#   'f'     argument f gives fraction of distance from start to end of x at which to find the slope, 0=x[1], 1=x[length(x)]
+#   'fx'    argument f gives fraction of distance between x-axis limits at which to find the slope
+#   'fy'    argument f gives fraction of distance between y-axis limits at which to find the slope
+#   '0'     find slope closest to 0
+#   'M+'    find most-positive slope
+#   'M-'    find most-negative slope
+#   'L+'    find least-positive positive slope
+#   'L-'    find least-negative negative slope
+# If seekLeft is TRUE, then whenever the position identified by the 'mode' and 'f' arguments lies
+# at an NA, the next non-NA position LEFT of that is used, while if seekLeft is FALSE, the next
+# non-NA position RIGHT of that is used.
+# If fWiden=0, the location identified is at TWO CONSECUTIVE non-NA points in (x, y).
+# If fWiden>0 and <1, two points are chosen by expanding outwards by fWiden*length(x) points
+# in each direction from the two consecutive points that are found. So for example if fWiden
+# is 0.05, then the two points used are -5% and +5% away from the two consecutive non-NA
+# points (but expansion never goes beyond an NA). For mode '0' only, fWiden is used to find
+# the mean slope over a group of fWiden*length(x) adjacent points, and the smallest slope
+# is used.
+#
+# Return a list with these members:
+#   leftX: x-coordinate of first of the two non-NA points.
+#   leftY: y-coordinate of first of the two non-NA points.
+#   midX: x-coordinate of midpoint of the two non-NA points.
+#   midY: y-coordinate of midpoint of the two non-NA points.
+#   rightX: x-coordinate of second of the two non-NA points.
+#   rightY: y-coordinate of second of the two non-NA points.
+#   iLeft: index into x[] and y[] of first of the two non-NA points.
+#   iRight: index into x[] and y[] of second of the two non-NA points.
+#   slope: slope in degrees (-180..+180) of the line connecting the two points, as the
+#       line appears on the plot.
+#
+# This works for logarithmic axes also.
+#######################################################################################
+findSlope = function(x, y, mode='f', f = 0.5, seekLeft=TRUE, fWiden=0)
+    {
+    if (f < 0 || f > 1)
+        stop("findSlope requires f to be between 0 and 1")
+    if (fWiden < 0 || fWiden > 1)
+        stop("findSlope requires fWiden to be between 0 and 1")
+    names(x) = NULL
+    names(y) = NULL
+    slopes = slopeToPlotAngleXY(x, y)
+    # Get indicator of which elements of slopes[] have valid non-NA non-Inf slopes.
+    indOK = !is.na(slopes) & !is.infinite(slopes)
+    if (!any(indOK))
+        stop("findSlope needs at least two adjacent points")
+    # For mode='f', find valid slope whose position is closest to fraction f of 1:length(slopes).
+    N = length(slopes)
+    if (mode == 'f')
+        {
+        i = floor(f*N)
+        }
+    else if (mode == 'fx')
+        {
+        Ux = par("usr")[1:2]
+        Vx = Ux[1] + f*diff(Ux)
+        i = which.min(abs(Vx-x))
+        }
+    else if (mode == 'fy')
+        {
+        Uy = par("usr")[3:4]
+        Vy = Uy[1] + f*diff(Uy)
+        i = which.min(abs(Vy-y))
+        }
+    # Else for other modes, find best slope.
+    else
+        {
+        idxPos = which(slopes >= 0)
+        idxNeg = which(slopes < 0)
+        if (mode == "M+")
+            i = which.max(slopes)
+        else if (mode == "M-")
+            i = which.min(slopes)
+        else if (mode == "L+")
+            i = idxPos[which.min(slopes[idxPos])]
+        else if (mode == "L-")
+            i = idxNeg[which.max(slopes[idxNeg])]
+        else if (mode != "0")
+            stop("unknown mode argument: ", mode, " in findSlope")
+        else
+            {
+            # Mode 0 requires special handling because it is possible slope will be 0 when it
+            # changes very slowly. We want to find the region whose width is given by fWiden
+            # that has the smallest mean slope.
+            n = floor(fWiden*N)
+            nn = 2*n+1
+            meanSlopes = sapply(1:N, function(k)
+                {
+                if (k <= n)
+                    k = n+1
+                else if (k > N - n)
+                    k = N - n
+                return(mean(slopes[k + (-n:n)]))
+                })
+            i = which.min(abs(meanSlopes))
+            }
+        }
+    # Look left or right if !indOK[i]
+    if (is.na(i) || i < 1) i = 1
+    if (i > N) i = N
+    if (!indOK[i])
+        {
+        idxOK = which(indOK)
+        isLeft = (idxOK < i)
+        if (seekLeft)
+            i = idxOK[isLeft][which.min(i - idxOK[isLeft])]
+        else
+            i = idxOK[!isLeft][which.min(idxOK[!isLeft] - i)]
+        if (length(i) == 0)
+            i = idxOK[which.min(abs(i - idxOK))]
+        }
+    # Expand outwards from i by fWiden*length(x) in both directions as long as points are adjacent.
+    j = i
+    n = floor(fWiden*N)
+    if (n > 0)
+        for (k in 1:n)
+            {
+            if (i > 1 && indOK[i-1])
+                i = i - 1
+            if (j < N && indOK[j+1])
+                j = j + 1
+            }
+    j = j+1 # j indexes the right-side point of the point-pair, not the left-side point
+    slope = slopeToPlotAngleXY(c(x[i], x[j]), c(y[i], y[j]))
+    names(slope) = NULL
+    iLeft = i
+    iRight = j
+    leftX = x[iLeft]
+    leftY = y[iLeft]
+    midX = mean(x[c(iLeft, iRight)])
+    midY = y[round(mean(c(iLeft, iRight)))]
+    rightX = x[iRight]
+    rightY = y[iRight]
+    return(list(leftX=leftX, leftY=leftY, midX=midX, midY=midY, rightX=rightX, rightY=rightY, iLeft=iLeft, iRight=iRight, slope=slope))
     }
 
 #######################################################################################
@@ -1466,6 +1646,21 @@ pretty.good = function(x, ...)
     }
 
 #######################################################################################
+# Like pretty() but something happened to it so that pretty(c(0,100), 4) no longer
+# returns c(0, 25, 50, 75, 100) but rather c(0, 20, 40, 60, 80, 100). This function
+# fixes that. It first checks to see if n exactly divides max(x)-min(x) and if so it
+# generates the sequence from that. Otherwise, it calls pretty.good().
+#######################################################################################
+pretty.good2 = function(x, n=5, ...)
+    {
+    d = max(x) - min(x)
+    e = d/n
+    if (e == as.integer(e))
+        return(seq(min(x), max(x), by=e))
+    return(pretty.good(x, n, ...))
+    }
+
+#######################################################################################
 # Like pretty() without all the extra arguments, except that this finds a
 # sequence of "round" values appropriate when the axis is logarithmic.  The
 # returned sequence includes powers of 10, and optionally, 2 * powers of 10,
@@ -1545,6 +1740,92 @@ pretty.log = function(x, include="X125", P10.StartEnd=FALSE)
         }
     names(seq) = NULL
     return(seq)
+    }
+
+#######################################################################################
+# This function's purpose is to provide a way to align two y-axes (left and right
+# sides) so that BOTH axes have the same number of ticks and labels (and grid lines
+# could hit them).
+#
+# This makes two calls to pretty(), one with x and the other with y for the "x"
+# argument, all other arguments the same. Then, the two resulting sequences are made
+# to be the same length in the negative direction and the same length in the positive
+# direction by extending the sequences in the positive and/or negative and/or zero
+# directions.
+#
+# This is difficult to describe in comments, easiest to describe with code and a few
+# comments.
+#
+# Return a list with elements Vx and Vy, the two pretty() sequences for x and y resp.
+#######################################################################################
+pretty2 = function(x, y, nx=5, ny=nx, ...)
+    {
+    # Note: Vx and Vy are both in ascending order.
+    Vx = pretty(x, nx, ...)
+    Vy = pretty(y, ny, ...)
+    # Find the extension to sequence Vx that includes 0, but if 0 does not lie on a multiple of the
+    # sequence spacing or f the sequence extends < 0 AND > 0, return NULL. If 0 is already in the
+    # sequence, return numeric(0).
+    getExtensionTo0 = function(Vx)
+        {
+        if (any(Vx == 0))
+            return(numeric(0))
+        Rx = range(Vx)
+        if (Rx[1] < 0 && Rx[2] > 0)
+            return(NULL)
+        dx = diff(Vx[1:2])
+        if (Rx[1] > 0)
+            {
+            n = Rx[1]/dx
+            if (n != as.integer(n))
+                return(NULL)
+            return(seq(0, Rx[1]-dx, by=dx))
+            }
+        n = Rx[2]/dx
+        if (n != as.integer(n))
+            return(NULL)
+        return(seq(Rx[2]+dx, 0, by=dx))
+        }
+    # First, for region around 0, get extension to 0 for both sequences. If NULL for either, no extension is done towards 0.
+    Ex = getExtensionTo0(Vx)
+    Ey = getExtensionTo0(Vy)
+    if (!is.null(Ex) && !is.null(Ey))
+        {
+        # The one with the longer extension towards 0 gets extended. Extension may be in negative or positive direction.
+        Nx = length(Ex)
+        Ny = length(Ey)
+        if (Nx > Ny)
+            {
+            if (Vx[1] > 0)
+                Vx = c(Ex[(Ny+1):Nx], Vx)
+            else
+                Vx = c(Vx, Ex[1:(Nx-Ny)])
+            }
+        else if (Ny > Nx)
+            {
+            if (Vy[1] > 0)
+                Vy = c(Ey[(Nx+1):Ny], Vy)
+            else
+                Vy = c(Vy, Ey[1:(Ny-Nx)])
+            }
+        }
+    # If length of sequence >= 0 differs, extend shorter one to same length as longer.
+    dx = diff(Vx[1:2])
+    dy = diff(Vy[1:2])
+    Nx = sum(Vx >= 0)
+    Ny = sum(Vy >= 0)
+    if (Nx > Ny)
+        Vy = c(Vy, Vy[Ny]+dy*(1:(Nx-Ny)))
+    else if (Ny > Nx)
+        Vx = c(Vx, Vx[Nx]+dx*(1:(Ny-Nx)))
+    # If length of sequence <= 0 differs, extend shorter one to same length as longer.
+    Nx = sum(Vx <= 0)
+    Ny = sum(Vy <= 0)
+    if (Nx > Ny)
+        Vy = c(Vy[1]-dy*((Nx-Ny):1), Vy)
+    else if (Ny > Nx)
+        Vx = c(Vx[1]-dy*((Ny-Nx):1), Vx)
+    return(list(Vx=Vx, Vy=Vy))
     }
 
 #######################################################################################
