@@ -1,71 +1,72 @@
----
-title: "EV Battery and Range Plots"
-output: html_document
-editor_options: 
-  markdown: 
-    wrap: 72
----
+# "EV Battery and Range Plots"
 
-Plot results of tests of an EV's range, plus many plot variations.
+# Plot results of tests of an EV's range, plus many plot variations.
 
-Note: this has gradually grown to include a lot more plots than I ever
-expected. At this point it desperately needs to be cleaned up to
-encapsulate a lot of common operations in functions, especially axes
-limit calculations.
+# |:---------------------------------------------------------------------------|
+# | Copyright (C) 2024 Ted Toal                                                |
+# | This program is free software: you can redistribute it and/or modify it    |
+# | under the terms of the GNU General Public License as published by the Free |
+# | Software Foundation, either version 3 of the License, or (at your option)  |
+# | any later version.                                                         |
+# | This program is distributed in the hope that it will be useful, but        |
+# | WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY |
+# | or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License    |
+# | for more details.                                                          |
+# | You should have received a copy of the GNU General Public License along    |
+# | with this program. If not, see <https://www.gnu.org/licenses/>.            |
+# | The author, Ted Toal, can be contacted via email at:                       |
+# |     [ted\@tedtoal.net](mailto:ted@tedtoal.net){.email}                     |
+# |:---------------------------------------------------------------------------|
 
-|                                                                                                                                                                                                                                                 |
-|:-----------------------------------------------------------------------|
-| Copyright (C) 2024 Ted Toal                                                                                                                                                                                                                     |
-| This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. |
-| This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.        |
-| You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.                                                                                                         |
-| The author, Ted Toal, can be contacted via email at [ted\@tedtoal.net](mailto:ted@tedtoal.net){.email}                                                   |:-----------------------------------------------------------------------|                                                                               
+# 1. This file is opened and run from the app named RStudio (or the R app if you
+#   already have it installed and know how to use it). To install RStudio, first
+#   install R, available for free from:
+#   <https://cran.r-project.org/mirrors.html> (pick one in your country,
+#   then find your system and latest version)
 
-This file is opened and run from the app named RStudio. To install it,
-first install R, available from:
-<https://cran.r-project.org/mirrors.html> (pick one in your country,
-then find your system and latest version)
+# 2. Then, install the free version of RStudio, available from:
+#   <https://posit.co/download/rstudio-desktop/>
+#   (scroll down the page and find your system)
 
-Then, install the free version of RStudio, available from:
-<https://posit.co/download/rstudio-desktop/>
-(scroll down the page and find your system)
+# 3. Open this file (EV-battery-and-range-plots.R) in RStudio.
 
-Open this file (EV-battery-and-range-plots.Rmd) by double-clicking its icon.
-This should open in RStudio.
+# 4. Look near line 70 for the variable RSOURCEPATH and edit its assignment:
+#   A. Set RSOURCEPATH to the directory leading to the includeFiles subdirectory
+#    inside the directory where you unzipped these files.
 
-Look near line 45 for three variables that are assigned, and edit them:
-   A. Set RSOURCEPATH to the directories leading to the includeFiles subdirectory
-        inside the directory where you unzipped the files.
-   B. Set useMetricInPlots TRUE to make plots using METRIC, FALSE for imperial units.
-   C. Set useBWcolors TRUE to make COLORED plots, FALSE to for BLACK-AND-WHITE plots.
+# 5. Then look near line 106 for three more variables and edit their assignments:
+#   B. Set plotToQuartz TRUE to plot to the built-in Quartz graphics device in
+#       addition to the normal plotting to a PDF file, if you wish to view the
+#       plots as you run through the code piece-by-piece (instead of just running
+#       all of it at once).
+#   C. Set metricInPlots TRUE to make plots using METRIC, FALSE for imperial
+#       units, or set to c(FALSE, TRUE) to produce separate PDF files of both.
+#   D. Set BWcolors TRUE to make COLORED plots, FALSE to for GRAYSCALE plots, or
+#       set to c(FALSE, TRUE) to produce separate PDF files of both.
 
-Run the code by selecting "Run All" from the Run drop-down menu.
-The first time it is run, it may install some R packages, but if so, this should only
-occur one time.
+# 6. Then run the code by selecting "Code", "Run Region", "Run All" in the menus
+#   or by selecting and running all the code. The first time it is run, it should
+#   install some R packages, but this should only occur one time and not on
+#   subsequent runs as long as the packages remain installed.
 
-Scroll down through this file to view the plots.
+# 7. After running this and getting no errors, the directory where you unzipped
+#   the files should have new PDF files of plots.
 
-The directory where you unzipped the files should have new PDF files of plots.
+# 8. Follow instructions in comments in the code to change it for a different EV.
+#   You must be able to measure or provide watt-hours/mile at different speeds.
 
-8. Follow instructions in comments in the code to change it for a different EV.
-You must be able to measure or provide watt-hours/mile at different speeds.
+# THE CODE YOU NEED TO EDIT TO CONTROL THE OUTPUT COLORS AND UNITS (METRIC VERSUS
+# IMPERIAL) AND TO CHANGE THE CAR DATA THAT IS PLOTTED ARE IN THE NEXT CODE CHUNKS
+# AFTER THE FOLLOWING ONE, SO KEEP LOOKING BELOW!!!
 
-THE CODE YOU NEED TO EDIT TO CONTROL THE OUTPUT COLORS AND UNITS (METRIC VERSUS
-IMPERIAL) AND TO CHANGE THE CAR DATA THAT IS PLOTTED ARE IN THE NEXT CODE CHUNKS
-AFTER THE FOLLOWING ONE, SO KEEP LOOKING BELOW!!!
+# The first code chunk below contains "includes" of my standard include files.
 
-The first code chunk below contains "includes" of my standard include files.
-
-CHANGE THE VALUE OF RSOURCEPATH BELOW TO THE DIRECTORY WHERE THE DOWNLOADED
-INCLUDE FILES WERE PLACED ("includeFiles" subdirectory of your download
-directory) SO THE CODE CAN FIND AND INCLUDE THOSE FILES.
-
-```{r paged.print=FALSE}
-
-# Set hard-coded RSOURCEPATH environment variable to the directory used for this code's R include files, which should be a
-# subdirectory named "includeFiles" located within the directory that contains the "EV-battery-and-range-plots.Rmd" file.
-# If you downloaded and unzipped the project files, 'includeFiles' should be in the folder you unzipped to. Note that the
-# "~" character at the start means your user home directory.
+################################################################################
+# CHANGE THE VALUE OF RSOURCEPATH BELOW TO THE DIRECTORY WHERE THE DOWNLOADED
+# INCLUDE FILES WERE PLACED ("includeFiles" subdirectory of your download
+# directory) SO THE CODE CAN FIND AND INCLUDE THOSE FILES. Note that the "~"
+# character at the start of the path means your user home directory.
+################################################################################
 RSOURCEPATH = file.path("~", "Documents", "Tesla", "EV-battery-and-range-plots", "includeFiles")
 
 ################################################################################
@@ -95,30 +96,44 @@ includeFile("Include_UtilityFunctions.R")
 includeFile("Include_TextFunctions.R")
 includeFile("Include_PlotFunctions.R")
 
-```
+################################################################################
+# SET THE FOLLOWING VALUES IN ORDER TO CONTROL THE OUTPUT UNITS AND COLORS!!!
+################################################################################
 
-SET THE FOLLOWING VALUES IN ORDER TO CONTROL THE OUTPUT UNITS AND COLORS!!!
-
-```{r paged.print=FALSE}
+# Set this TRUE to plot to the built-in Quartz device after the plotting function
+# for each plot is defined (used if you are debugging and going through the code
+# line-by-line).
+plotToQuartz = FALSE
 
 # Set this TRUE to produce plots using METRIC units, FALSE for imperial units.
-useMetricInPlots = FALSE
+# Use c(FALSE, TRUE) to produce BOTH types of plots (in separate PDF files).
+metricInPlots = c(FALSE, TRUE)
 
-# Set this TRUE to produce plots with COLORS, FALSE to produce black and white plots (including the inline plots below as well
-# as the plots in the PDF files produced at the end).
-useBWcolors = FALSE
+# Set this TRUE to produce plots with COLORS, FALSE to produce GRAYSCALE plots.
+# Use c(FALSE, TRUE) to produce plots using BOTH COLOR AND GRAYSCALE plots (in
+# separate PDF files).
+BWcolors = c(FALSE, TRUE)
 
-```
+################################################################################
+# The rest of this file is run possibly up to four times, using each combination
+# of values set for metricInPlots and BWcolors. Each time through this very
+# large loop, one PDF file is produced. Each PDF file has a unique name that
+# tells whether it is metric or imperial and whether it is in color or grayscale.
+################################################################################
 
-Define the results of measurements that must be made, plus vehicle-related data
-and the directory and filename to be used for PDF file output.
+for (useMetricInPlots in metricInPlots)
+{
+for (useBWcolors in BWcolors)
+{
 
-Review the following values and make changes as needed.
-
-To change this code to a different vehicle, edit the values in the next two code
-chunks.
-
-```{r paged.print=FALSE}
+################################################################################
+# Below is defined the results of measurements that must be made on the vehicle,
+# plus vehicle-related data and other things such as the directory and filename
+# to be used for PDF file output.
+#
+# To change this code to a different vehicle, edit the values below and make
+# changes as needed.
+################################################################################
 
 # Below, a list named basicData is defined, containing most of the constants that require changes to plot data for
 # a different electric vehicle.
@@ -210,7 +225,7 @@ basicData = list(
     batteryHealthDesc="Ran Tesla battery test in hidden service menu.",
     # Vehicle empty weight.
     vehicleEmptyWeight=4000, # Google says 3838 to 4072 lbs
-    # Vehicle load such as passengers, used during testing. 
+    # Vehicle load such as passengers, used during testing.
     passengerWeight=250, # assume one passenger
     # Estimated efficiency of combined battery, inverter, motor, and drivetrain, in percent.
     # Some research on internet shows that although this changes SOME with power output, that
@@ -259,8 +274,11 @@ fuelUseMetric = FALSE
 # The data here was obtained by approximating two speed vs. miles-per-gallon plots obtained from www.mpgforspeed.com.
 fuelUsageEff = list(speedBreakpoints=c(0, 5, 25, 55, 120), fuelEffBreakpoints=c(0, 12, 28, 30, 12))
 
-# Charge curve for battery. This is for a Tesla Model 3 with 75 kWh battery, obtained from
-# https://evkx.net/models/tesla/model_3/model_3_long_range/chargingcurve/
+################################################################################
+# Charge curve for battery. This is for a Tesla Model 3 with 75 kWh battery,
+# obtained from:
+#   https://evkx.net/models/tesla/model_3/model_3_long_range/chargingcurve/
+################################################################################
 dfChargeCurve = as.data.frame(matrix(c(
     0, 100, 0,	0,          1, 103, 28, 0.8,        2, 108, 54, 1.5,        3, 108, 81, 2.2,        4, 108, 107, 3.0,
     5, 108, 133, 3.8,       6, 230, 150, 4.5,       7, 235, 162, 5.2,       8, 240, 174, 6.0,       9, 245, 186, 6.8,
@@ -295,6 +313,7 @@ if (any(dfChargeCurve$SOCpct != round(100*dfChargeCurve$TotalEnergy/basicData$ba
 if (max(dfChargeCurve$TotalEnergy) != basicData$batteryRatedCapacity_kWh)
     stop("Battery charge curve data is for a different battery rated capacity than the basic data table, this will be problematic")
 
+################################################################################
 # The imperial and metric units used are:
 #   unit                    metric                          imperial
 #   ----                    ------                          --------
@@ -333,11 +352,12 @@ if (max(dfChargeCurve$TotalEnergy) != basicData$batteryRatedCapacity_kWh)
 #   dist_per_cost_long      kilometers per euro             miles per dollar
 #   cost_per_dist           €/km                            $/mi
 #   cost_per_dist_long      euros per kilometer             dollars per mile
-    
-# Strings to use for different units in the plot output. This contains strings from the above table, based on the
-# setting of useMetricInPlots (NOT on basicDataUnits_metric), so this table is for units that are to appear in PLOTS
-# and is NOT necessarily the units used in basicData. For those, see the above table in comments, using the column
+#
+# unitsTable contains strings to use for different units in the plot output, from the above table, based on the
+# setting of useMetricInPlots (NOT on basicDataUnits_metric), so unitsTable is for units that are to appear in PLOTS
+# and is NOT necessarily the units used in basicData. For those, see the above commented table, using the column
 # associated with basicDataUnits_metric.
+################################################################################
 unitsTable = list(
     distance=ifelse(useMetricInPlots, "km", "mi"),
     dist_long=ifelse(useMetricInPlots, "kilometer", "mile"),
@@ -375,19 +395,22 @@ unitsTable = list(
     cost_per_dist=ifelse(useMetricInPlots, "€/km", "$/mi"),
     cost_per_dist_long=ifelse(useMetricInPlots, "euros per kilometer", "dollars per mile"))
 
-# List of strings that can be used in plots. The string name is used by the tprintf() function to
-# access the string using so-called "~"-specifiers, see tprintf(). Note: these strings can THEMSELVES
-# contain tilde-specifiers, see tprintf().
+################################################################################
+# List of strings that can be used in plots. The string name is used by the
+# tprintf() function to access the string using so-called "~"-specifiers, see
+# tprintf(). Note: these strings can THEMSELVES contain tilde-specifiers, see
+# tprintf().
 # Currently these are used for describing assumptions at the top of each plot.
 # Caution: all names must be unique between here and basicData and unitsTable.
+################################################################################
 displayStrings=list(
     EVdesc="~description@",
     conditions="Tested on flat road, est. ~temperature@~temp@, elev ~elevation@~elev@, ~barometer@~pres@",
     battDeg="batt degraded ~batteryDegradation_pct@% for ~batteryCapacity_kWh@kWh capacity",
     SOC100="100% SOC is ~batteryCapacity_kWh@kWh",
     totalWeight="weight ~vehicleWeight@~weight@ (with ~passengerWeight@~weight@ passengers)",
-    effFactor="~energyEfficiency_pct@% net energy efficiency upon increased load, ~energyEfficiency_pct@% regen energy recapture efficiency", 
-    posEffFactor="~energyEfficiency_pct@% net energy efficiency upon increased load", 
+    effFactor="~energyEfficiency_pct@% net energy efficiency upon increased load, ~energyEfficiency_pct@% regen energy recapture efficiency",
+    posEffFactor="~energyEfficiency_pct@% net energy efficiency upon increased load",
     drag="drag coefficient ~coefDrag@",
     areaFrontal="frontal area ~frontalArea@~area@",
     airdens="air density computed using density altitude",
@@ -399,20 +422,17 @@ displayStrings=list(
     none=""
     )
 
-```
-
-List of the air conditions to use when making certain plots, and one of these
-conditions (named "testCond") is the air conditions that were present when the
-vehicle was tested to gather the basicData.
-
-Edit this list if you want to change the air conditions that are
-plotted, or change the values to be in the units specified by
-basicDataUnits_metric.
-
-The units used here MUST BE the same units used in the basicData table,
-as given by basicDataUnits_metric.
-
-```{r paged.print=FALSE}
+################################################################################
+# List of the air conditions to use when making certain plots, and one of these
+# conditions (named "testCond") is the air conditions that were present when the
+# vehicle was tested to gather the basicData.
+#
+# Edit this list if you want to change the air conditions that are plotted, or
+# change the values to be in the units specified by basicDataUnits_metric.
+#
+# The units used here MUST BE the same units used in the basicData table, as
+# given by basicDataUnits_metric.
+################################################################################
 
 # Different air conditions at which to plot EV power and range (elevation, temperature, barometer adjusted to sea level),
 # including a line color and a brief description for the plot legend. The inner list name is arbitrary except that one must
@@ -431,12 +451,10 @@ airConditionsToPlot = list(
     highPres=list(elev=0, temp=50, pres=30.20, desc="High Pressure", col=ifelse(useBWcolors, "gray85", "pink"))
     )
 
-```
-
-Physical constants and one-line functions for manipulating physical values.
-It should not be necessary to change these.
-
-```{r paged.print=FALSE}
+################################################################################
+# Physical constants and one-line functions for manipulating physical values.
+# It should not be necessary to change these.
+################################################################################
 
 # Temperature unit conversions.
 degC_to_degF = function(Tc) round(9*Tc/5+32, 1)
@@ -495,11 +513,10 @@ altLapse_ft_per_degC = altLapse_m_per_degC/m_per_ft
 # Altitude change corresponding to a 1 inHg barometer change, used in equation for pressure altitude.
 altLapse_ft_per_inHg = 914
 
-```
+################################################################################
+# Constant definitions for plot colors and line styles. Change these if you wish.
+################################################################################
 
-Constant definitions for plot colors and line styles. Change these if you wish.
-
-```{r paged.print=FALSE}
 # Choose colors on dist_per_cost graph page to give good black/white contrast when printed.
 col_raw_data = "gray"
 col_derived_data = "black"
@@ -547,15 +564,13 @@ pch_est_data = pch_triangle
 pch_change_data = pch_est_data
 pch_elect = pch_bullet
 
-```
-
-Add to basicData some values derived from other values in basicData.
-
-No changes should be needed here, and probably no changes for the
-remainder of the file, although in some cases you may find that you want
-to tweak some things below, so read through the code.
-
-```{r paged.print=FALSE}
+################################################################################
+# Add to basicData some values derived from other values in basicData.
+#
+# No changes should be needed here, and probably no changes for the
+# remainder of the file, although in some cases you may find that you want
+# to tweak some things below, so read through the code.
+################################################################################
 
 # Total vehicle weight including load such as passengers.
 basicData$vehicleWeight = basicData$vehicleEmptyWeight + basicData$passengerWeight
@@ -566,12 +581,10 @@ basicData$batteryCapacity_kWh = round(basicData$batteryRatedCapacity_kWh*basicDa
 # Battery degradation in percent.
 basicData$batteryDegradation_pct = 100 - basicData$batteryHealth_pct
 
-```
-
-Make three new versions of the basicData list: one in imperial units, one in
-metric units, and one in the units being used for plotting.
-
-```{r paged.print=FALSE}
+################################################################################
+# Make three new versions of the basicData list: one in imperial units, one in
+# metric units, and one in the units being used for plotting.
+################################################################################
 
 # Convert basicData to imperial units. Round results so they will look good printed. Note that currency units are NOT
 # converted, they are never needed in any form other than the units they are specified in within basicData.
@@ -612,14 +625,12 @@ basicData_plot = basicData_imperial
 if (useMetricInPlots)
     basicData_plot = basicData_metric
 
-```
-
-Convert the values in the fuelUsageEff list from the units specified by fuelUseMetric
-to the units specified by useMetricInPlots. Then, a function is defined that uses the
-piecewise-linear curve defined in fuelUsageEff to generate gasoline vehicle fuel
-efficiency from speed.
-
-```{r paged.print=FALSE}
+################################################################################
+# Convert the values in the fuelUsageEff list from the units specified by
+# fuelUseMetric to the units specified by useMetricInPlots. Then, a function is
+# defined that uses the piecewise-linear curve defined in fuelUsageEff to
+# generate gasoline vehicle fuel efficiency from speed.
+################################################################################
 
 # Convert fuelUsageEff list to the units specified by useMetricInPlots, storing result in fuelUseSpeed and fuelUseEff.
 fuelUseSpeed = fuelUsageEff$speedBreakpoints
@@ -634,7 +645,7 @@ if (!fuelUseMetric && useMetricInPlots)
     fuelUseSpeed = round(fuelUseSpeed * kmph_per_mph)
     fuelUseEff = round(fuelUseEff * kmpl_per_mpg)
     }
-    
+
 # Convert speed to fuel efficiency for a gas vehicle, using the piecewise-linear curve defined in fuelUseSpeed and fuelUseEff.
 # Round to 1 digit after decimal point. All units are as specified by useMetricInPlots.
 Speed_to_fuelDistPerfuelVolUnit = function(Speed)
@@ -644,12 +655,10 @@ Speed_to_fuelDistPerfuelVolUnit = function(Speed)
     return(eff)
     }
 
-```
-
-Functions for various power, energy use and range computations. We just keep
-adding functions here as needed.
-
-```{r paged.print=FALSE}
+################################################################################
+# Functions for various power, energy use and range computations. We just keep
+# adding functions here as needed.
+################################################################################
 
 # Define a scale factor to go from kWh to battery percent (or, for example, from kWh/distance to battery percent/distance or
 # from kWh/hour (same as kW) to battery percent/hour).
@@ -743,11 +752,9 @@ WhPerDist_Speed_to_ElectCostForTime = function(WhPerDist, Speed, time=basicData$
 # Speed_to_fuelDistPerfuelVolUnit(). Speed can be a vector.
 Speed_to_FuelCostForTime = function(Speed, time=basicData$compareEnergyCost_Hours) round(time*Speed_to_FuelCostPerTime(Speed), 2)
 
-```
-
-Definitions related to drag and grade.
-
-```{r paged.print=FALSE}
+################################################################################
+# Definitions related to drag and grade.
+################################################################################
 
 # Pressure altitude (equivalent altitude at std temp/pres of a locale with given elevation and sea-level-adjusted barometer)
 PAft_in_ft_inHg = function(elevation_ft, barometer_inHg)
@@ -832,11 +839,9 @@ rangeAtGradeTestVehicle_in_mph_mi = function(mph, flatRange_mi, grade)
     return(totalRange)
     }
 
-```
-
-General-purpose function definitions.
-
-```{r paged.print=FALSE}
+################################################################################
+# General-purpose function definitions.
+################################################################################
 
 # Similar to sprintf() except this interprets "~"-specifiers rather than "%"-specifiers. A "~"-specifier is of one of these
 # forms:   ~WORD@  or  ~WORD`  or ~WORD^  or  ~~  or ~@  or  ~`  or  ~^
@@ -1086,12 +1091,11 @@ makeStringList = function(..., heading="Assumptions: ", bullets=paste0(LETTERS, 
     return(res$S)
     }
 
-```
+################################################################################
+# Create a data frame containing the measured speed and wh/mi data, using the
+# units used for plotting.
+################################################################################
 
-Create a data frame containing the measured speed and wh/mi data, using the units
-used for plotting.
-
-```{r paged.print=FALSE}
 # Data frame dAll contains ALL data, including estimated data added for approximation.
 
 dAll = data.frame(speed=basicData_plot$speed,
@@ -1102,13 +1106,9 @@ dAll = data.frame(speed=basicData_plot$speed,
         addForApproximation=basicData_plot$addForApproximation,
         stringsAsFactors=FALSE)
 
-```
-
-Compute a bunch of values in dAll derived from the measured values, and set some
-y-axis scale factor variables for use when displaying multiple y-axes to show
-values in different units.
-
-```{r paged.print=FALSE}
+################################################################################
+# Compute a bunch of values in dAll derived from the measured values.
+################################################################################
 
 # Average the two directions to get the energy per unit distance value we will use for most plots.
 dAll$WhPerDist = (dAll$WhPerDist_dir1 + dAll$WhPerDist_dir2)/2
@@ -1152,12 +1152,10 @@ dAll$fuelCostForFixedDist = Speed_to_FuelCostForDist(dAll$speed)
 dAll$electCostForFixedTime = WhPerDist_Speed_to_ElectCostForTime(dAll$WhPerDist, dAll$speed)
 dAll$fuelCostForFixedTime = Speed_to_FuelCostForTime(dAll$speed)
 
-```
-
-Copy the dAll data frame into two more data frames, one used for plotting measured
-values and the other for computing polynomial approximations.
-
-```{r paged.print=FALSE}
+################################################################################
+# Copy the dAll data frame into two more data frames, one used for plotting
+# measured values and the other for computing polynomial approximations.
+################################################################################
 
 # Copy and remove the data added for approximation. Data frame dt is used to make plots of MEASURED data.
 dt = dAll[!dAll$addForApproximation,]
@@ -1165,17 +1163,16 @@ dt = dAll[!dAll$addForApproximation,]
 # Copy data for approximation. Data frame dta is used to compute polynomial approximations to the measured data.
 dta = dAll
 
-```
-
-Define speed ranges for plotting.
-
-Vector fineSpeeds contains a range of speeds at which to compute various functions
-of speed at a fine speed scale, much finer of a scale than the speeds at which measurements
-of energy consumption were made. These speeds are used to predict various values using
-polynomial approximations, so that they can be plotted on a much wider speed scale than
-the measurement speeds.
-
-```{r paged.print=FALSE}
+################################################################################
+# Define speed ranges for plotting.
+#
+#
+# Vector fineSpeeds contains a range of speeds at which to compute various
+# functions of speed at a fine speed scale, much finer of a scale than the
+# speeds at which measurements of energy consumption were made. These speeds
+# are used to predict various values using polynomial approximations, so that
+# they can be plotted on a much wider speed scale than the measurement speeds.
+################################################################################
 
 # Set variables for upper and lower limits, then create a vector of the speeds and also convert to mph for use in
 # functions requiring imperial units. Note that a speed of 0 is not included because this will cause divide-by-zero
@@ -1189,102 +1186,98 @@ fineSpeeds_mph = fineSpeeds * ifelse(useMetricInPlots, 1/kmph_per_mph, 1)
 names(fineSpeeds_mph) = fineSpeeds
 nTicks_fineSpeed = (max_fineSpeed-xmin_fineSpeed)/ifelse(useMetricInPlots, 10, 5)
 
-```
-
-Define distance ranges for plotting when the fineSpeeds vector is used for the speeds.
-
-Vector fineDists contains a range of distances at which to compute various functions
-of distance at the fine speed scale given by fineSpeeds. These distances are used to
-predict various values using polynomial approximations.
-
-```{r paged.print=FALSE}
+################################################################################
+# Define distance ranges for plotting when the fineSpeeds vector is used for the
+# speeds.
+#
+# Vector fineDists contains a range of distances at which to compute various
+# functions of distance at the fine speed scale given by fineSpeeds. These
+# distances are used to predict various values using polynomial approximations.
+################################################################################
 
 maxDist_fineSpeed = ifelse(useMetricInPlots, 700, 400)
 nTicksDist_fineSpeed = ifelse(useMetricInPlots, maxDist_fineSpeed/50, maxDist_fineSpeed/25)
 fineDists = seq(0, maxDist_fineSpeed, by=5)
 
-```
-
-We compute polynomial approximations to some parameters based using either
-the actual measured data in dt or the measured data plus additional points
-in dta. Generally we use dt for linear approximations and dta is only being
-used for 3rd-order power approximation currrently. Other parameters derive
-their approximations not from fitting a polynomial but by using the
-approximations of OTHER parameters.
-
-The coefficients are stored in list apx (=approximation), which contains
-sublists, one for each parameter that has one or more approximations,
-named for the parameter (e.g. Speed_Power for an approximation of power
-consumption based on speed). Within the parameter list is one or more
-sublists, one for each approximation. The names for each sublist are
-"ord1", "ord2", "ord3" for approximations that are linear or first order
-(ord1), quadratic or second order (ord2), or third order (ord3). Within
-the ord list are the coefficients of the approximation (A, B, C, etc.,
-or for linear I (intersect) and M (slope)). In some cases scaling
-constants are used to make a more easier-to-read formula, in which case
-there may be members such as 'divisor' or 'divisor1' and 'divisor2'.
-List member 'note' is a text string providing information about the
-approximation, or an empty string if none. List member 'text' is a
-string representation of the approximation formula, member 'expr' is
-an R expression object for the formula, and member 'compute' is an R
-function that computes the parameter values from a vector of the
-independent values (usually a vector of speeds) and the coefficients
-list. There is also a "textplus" member that is like "text" but is
-followed by an additional description of the variables in the expression.
-
-When a parameter's approximation is derived from another parameter's
-approximation, the sublist name is "derived", and within that list is
-member "subcoefs" containing a copy of the "ord" sublist from which the
-parameter derives its values (and so the "subcoefs" member is a sublist
-containing coefficients, "compute", "text", "textplus", and "expr"
-members). The "derived" sublist also contains members "compute", "text",
-and "expr". The "compute" function accesses the "subcoefs" member to call
-its compute function to compute values of the parameter from which this
-parameter's values are derived, and it then derives the new parameter
-values from those approximations. The "note" member of derived parameters
-describes the derivation with words, while the "text" and "expr" members
-give the expression for the parameter value based on the value of the
-parameter from which it is derived.
-
-The first example of such a derived parameter is Speed_BatteryPctPerDist,
-which computes % battery per distance from speed by first using the
-Speed_Power approximation to compute power as a function of speed,
-then computes the % battery per distance using the speed and power.
-
-The scaling constants, when they are used (e.g. divisor) may need to be
-manually adjusted to come up with easy-to-read formulas, so this code
-has to be edited if the data is changed. I've tried to make it not too
-hard to do that, but maybe I shouldn't have done it that way. You can
-always leave it as-is, it should still come up with good approximation
-equations, they just might have awkward-to-remember-and-use-by-hand
-coefficients.
-
-The roundToAccuracy() function is used to round coefficients to values
-that are easier to read and remember and work with in your head while
-still close enough to the actual coefficient value to do a good job, but
-using it means you need to look at the plotted approximation curves to
-see if they actually are good approximations.
-
-```{r paged.print=FALSE}
+################################################################################
+# We compute polynomial approximations to some parameters based using either
+# the actual measured data in dt or the measured data plus additional points
+# in dta. Generally we use dt for linear approximations and dta is only being
+# used for 3rd-order power approximation currrently. Other parameters derive
+# their approximations not from fitting a polynomial but by using the
+# approximations of OTHER parameters.
+#
+# The coefficients are stored in list apx (=approximation), which contains
+# sublists, one for each parameter that has one or more approximations,
+# named for the parameter (e.g. Speed_Power for an approximation of power
+# consumption based on speed). Within the parameter list is one or more
+# sublists, one for each approximation. The names for each sublist are
+# "ord1", "ord2", "ord3" for approximations that are linear or first order
+# (ord1), quadratic or second order (ord2), or third order (ord3). Within
+# the ord list are the coefficients of the approximation (A, B, C, etc.,
+# or for linear I (intersect) and M (slope)). In some cases scaling
+# constants are used to make a more easier-to-read formula, in which case
+# there may be members such as 'divisor' or 'divisor1' and 'divisor2'.
+# List member 'note' is a text string providing information about the
+# approximation, or an empty string if none. List member 'text' is a
+# string representation of the approximation formula, member 'expr' is
+# an R expression object for the formula, and member 'compute' is an R
+# function that computes the parameter values from a vector of the
+# independent values (usually a vector of speeds) and the coefficients
+# list. There is also a "textplus" member that is like "text" but is
+# followed by an additional description of the variables in the expression.
+#
+# When a parameter's approximation is derived from another parameter's
+# approximation, the sublist name is "derived", and within that list is
+# member "subcoefs" containing a copy of the "ord" sublist from which the
+# parameter derives its values (and so the "subcoefs" member is a sublist
+# containing coefficients, "compute", "text", "textplus", and "expr"
+# members). The "derived" sublist also contains members "compute", "text",
+# and "expr". The "compute" function accesses the "subcoefs" member to call
+# its compute function to compute values of the parameter from which this
+# parameter's values are derived, and it then derives the new parameter
+# values from those approximations. The "note" member of derived parameters
+# describes the derivation with words, while the "text" and "expr" members
+# give the expression for the parameter value based on the value of the
+# parameter from which it is derived.
+#
+# The first example of such a derived parameter is Speed_BatteryPctPerDist,
+# which computes % battery per distance from speed by first using the
+# Speed_Power approximation to compute power as a function of speed,
+# then computes the % battery per distance using the speed and power.
+#
+# The scaling constants, when they are used (e.g. divisor) may need to be
+# manually adjusted to come up with easy-to-read formulas, so this code
+# has to be edited if the data is changed. I've tried to make it not too
+# hard to do that, but maybe I shouldn't have done it that way. You can
+# always leave it as-is, it should still come up with good approximation
+# equations, they just might have awkward-to-remember-and-use-by-hand
+# coefficients.
+#
+# The roundToAccuracy() function is used to round coefficients to values
+# that are easier to read and remember and work with in your head while
+# still close enough to the actual coefficient value to do a good job, but
+# using it means you need to look at the plotted approximation curves to
+# see if they actually are good approximations.
+################################################################################
 
 # Store all approximations in apx list.
 apx = list()
-```
 
-Computelinear and 3rd-order polynomial approximations to power as a function of
-speed. Both approximations use power computed from measured speed and energy per
-unit distance to fit the curves. Only the 3rd-order approximation uses the
-estimated data points (addForApproximation points).
-
-Note: power is the same as energy/time, e.g. W is the same as Wh/hour and
-kWh is the same as kWh/hour. Also, energy is proportional to % battery,
-so energy/dist is proportional to % battery/dist and energy/hour is
-proportional to % battery/hour. Therefore, since power is the same as
-Wh/hour, power is proportional to %battery/hour. Thus, the proportionality
-factor scale_Wh_to_BatteryPct can be multiplied by power in W to get
-BatteryPctPerHour.
-
-```{r paged.print=FALSE}
+################################################################################
+# Computelinear and 3rd-order polynomial approximations to power as a function
+# of speed. Both approximations use power computed from measured speed and
+# energy per unit distance to fit the curves. Only the 3rd-order approximation
+# uses the estimated data points (addForApproximation points).
+#
+# Note: power is the same as energy/time, e.g. W is the same as Wh/hour and
+# kWh is the same as kWh/hour. Also, energy is proportional to % battery,
+# so energy/dist is proportional to % battery/dist and energy/hour is
+# proportional to % battery/hour. Therefore, since power is the same as
+# Wh/hour, power is proportional to %battery/hour. Thus, the proportionality
+# factor scale_Wh_to_BatteryPct can be multiplied by power in W to get
+# BatteryPctPerHour.
+################################################################################
 
 # Speed_Power: power approximations, power in kw as a function of speed.
 # These approximations are derived using power computed from the measured
@@ -1353,15 +1346,13 @@ coefs$compute = function(speeds, coefs)
     setNames(((coefs$A*speeds+coefs$B)*speeds+coefs$C)*speeds+coefs$D, as.character(speeds))
 apx$Speed_Power$ord3 = coefs
 
-```
-
-Compute linear and power-derived approximations to battery % per unit distance
-as a function of speed. The linear approximation uses % battery per distance
-computed from measured speed and energy per unit distance to fit the curve.
-The derived approximation uses speed along with the 3rd-order power
-approximation from above to compute the estimated battery % per distance.
-
-```{r paged.print=FALSE}
+################################################################################
+# Compute linear and power-derived approximations to battery % per unit distance
+# as a function of speed. The linear approximation uses % battery per distance
+# computed from measured speed and energy per unit distance to fit the curve.
+# The derived approximation uses speed along with the 3rd-order power
+# approximation from above to compute the estimated battery % per distance.
+################################################################################
 
 # Speed_BatteryPctPerDist: energy per distance approximations, as a function of speed.
 
@@ -1406,15 +1397,13 @@ coefs$compute = function(speeds, coefs)
     setNames(100*coefs$subcoefs$compute(speeds, coefs$subcoefs)/(basicData$batteryCapacity_kWh*speeds), as.character(speeds))
 apx$Speed_BatteryPctPerDist$derived = coefs
 
-```
-
-Compute linear and power-derived approximations to battery % per hour as a function
-of speed. The linear approximation uses % battery per hour computed from measured
-speed and energy per unit distance to fit the curve. The derived approximation
-uses the 3rd-order power approximation from above to compute the estimated
-battery % per hour.
-
-```{r paged.print=FALSE}
+################################################################################
+# Compute linear and power-derived approximations to battery % per hour as a
+# function of speed. The linear approximation uses % battery per hour computed
+# from measured speed and energy per unit distance to fit the curve. The derived
+# approximation uses the 3rd-order power approximation from above to compute the
+# estimated battery % per hour.
+################################################################################
 
 # Speed_BatteryPctPerHour: energy per hour approximations.
 
@@ -1456,15 +1445,13 @@ coefs$compute = function(speeds, coefs)
     setNames(100*coefs$subcoefs$compute(speeds, coefs$subcoefs)/basicData$batteryCapacity_kWh, as.character(speeds))
 apx$Speed_BatteryPctPerHour$derived = coefs
 
-```
-
-Compute linear and power-derived approximations to range as a function of speed.
-The linear approximation uses range computed from measured speed and energy per
-distance (and battery capacity) to fit the curve. The derived approximation uses
-speed along with the 3rd-order power approximation from above (and battery
-capacity) to compute the estimated range.
-
-```{r paged.print=FALSE}
+################################################################################
+# Compute linear and power-derived approximations to range as a function of speed.
+# The linear approximation uses range computed from measured speed and energy per
+# distance (and battery capacity) to fit the curve. The derived approximation uses
+# speed along with the 3rd-order power approximation from above (and battery
+# capacity) to compute the estimated range.
+################################################################################
 
 # Speed_Range: range approximations, as a function of speed.
 
@@ -1506,13 +1493,11 @@ coefs$compute = function(speeds, coefs)
     setNames(basicData$batteryCapacity_kWh*speeds/coefs$subcoefs$compute(speeds, coefs$subcoefs), as.character(speeds))
 apx$Speed_Range$derived = coefs
 
-```
-
-Compute power-derived approximation to distance per unit price as a function of
-speed, using speed along with the 3rd-order power approximation from above (and
-battery capacity).
-
-```{r paged.print=FALSE}
+################################################################################
+# Compute power-derived approximation to distance per unit price as a function of
+# speed, using speed along with the 3rd-order power approximation from above (and
+# battery capacity).
+################################################################################
 
 # Speed_DistPerUnitCost: distance per unit cost approximations, as a function of speed.
 
@@ -1531,13 +1516,11 @@ coefs$compute = function(speeds, coefs)
     setNames(speeds/(basicData$avgElecCostPer_kWh*coefs$subcoefs$compute(speeds, coefs$subcoefs)), as.character(speeds))
 apx$Speed_DistPerUnitCost$derived = coefs
 
-```
-
-Compute power-derived approximation to cost per unit distance as a function of
-speed, using speed along with the 3rd-order power approximation from above (and
-battery capacity).
-
-```{r paged.print=FALSE}
+################################################################################
+# Compute power-derived approximation to cost per unit distance as a function of
+# speed, using speed along with the 3rd-order power approximation from above (and
+# battery capacity).
+################################################################################
 
 # Speed_CostPerUnitDist: cost per unit distance approximations, as a function of speed.
 
@@ -1556,13 +1539,11 @@ coefs$compute = function(speeds, coefs)
     setNames(basicData$avgElecCostPer_kWh*coefs$subcoefs$compute(speeds, coefs$subcoefs)/speeds, as.character(speeds))
 apx$Speed_CostPerUnitDist$derived = coefs
 
-```
-
-Compute power-derived approximation to cost for fixed distance as a function of
-speed, using speed along with the 3rd-order power approximation from above (and
-battery capacity).
-
-```{r paged.print=FALSE}
+################################################################################
+# Compute power-derived approximation to cost for fixed distance as a function of
+# speed, using speed along with the 3rd-order power approximation from above (and
+# battery capacity).
+################################################################################
 
 # Speed_CostForFixedDist: cost for fixed distance approximations, as a function of speed.
 
@@ -1584,25 +1565,20 @@ coefs$compute = function(speeds, coefs)
     as.character(speeds))
 apx$Speed_CostForFixedDist$derived = coefs
 
-```
-
-Use the 3rd-order power approximation above to compute estimates of total power
-at speeds given by fineSpeeds.
-
-```{r paged.print=FALSE}
+################################################################################
+# Use the 3rd-order power approximation above to compute estimates of total power
+# at speeds given by fineSpeeds.
+################################################################################
 
 # Estimate total power required at each fineSpeeds speed using third-order approximation.
 coefs = apx$Speed_Power$ord3
 totalPower_fineSpeeds = coefs$compute(fineSpeeds, coefs)
 
-```
-
-Create dt_fineSpeeds, which is similar to dt except its speeds are the
-vector fineSpeeds, and other entries are computed from that and the
-third-order approximation for power using derived approximations from
-above.
-
-```{r paged.print=FALSE}
+################################################################################
+# Create data frame dt_fineSpeeds, which is similar to dt except its speeds are
+# the vector fineSpeeds, and other entries are computed from that and the
+# third-order approximation for power using derived approximations from above.
+################################################################################
 
 # Precompute 3rd-order approximation for power at fineSpeeds, for use in other computotions below.
 kw_ord3 = apx$Speed_Power$ord3$compute(fineSpeeds, apx$Speed_Power$ord3)
@@ -1662,16 +1638,15 @@ if (sum(ind) < 5)
 speeds_batteryPlots = dt_fineSpeeds$speed[ind]
 # Also save the indexes into df_fineSpeeds$speed of each of the speeds in speeds_batteryPlots.
 idxs_speeds_batteryPlots = which(ind)
-```
 
-Compute density altitude in feet, and air density, given the test coditions of
-elevation, temperature, and barometer. Apply estimated energy conversion efficiency
-of the vehicle to increase drag energy to that actually consumed. Compute baseline
-power (power excluding drag) at fineSpeeds by subtracting drag power at test
-conditions with 0 wind from total power required at each speed. The baseline
-power includes additional power required due to loss from energy conversion efficiency.
-
-```{r paged.print=FALSE}
+################################################################################
+# Compute density altitude in feet, and air density, given the test coditions of
+# elevation, temperature, and barometer. Apply estimated energy conversion efficiency
+# of the vehicle to increase drag energy to that actually consumed. Compute baseline
+# power (power excluding drag) at fineSpeeds by subtracting drag power at test
+# conditions with 0 wind from total power required at each speed. The baseline
+# power includes additional power required due to loss from energy conversion efficiency.
+################################################################################
 
 DA_ft = DAft_in_ft_degF_inHg(basicData_imperial$elevation, basicData_imperial$temperature, basicData_imperial$barometer)
 rho = rhoMetric_in_DAft(DA_ft)
@@ -1679,11 +1654,9 @@ kw = dragPower_kW_TestVehicle_in_mph_metric(fineSpeeds_mph, rho)
 baselinePower_fineSpeeds = totalPower_fineSpeeds - kw
 names(baselinePower_fineSpeeds) = as.character(fineSpeeds)
 
-```
-
-Axis limits for plotting SOC (state-of-charge), a percent value.
-
-```{r paged.print=FALSE}
+################################################################################
+# Axis limits for plotting SOC (state-of-charge), a percent value.
+################################################################################
 
 # SOC axis limit and number of ticks.
 maxSOCpct_axis = 100
@@ -1693,11 +1666,9 @@ nTicksSOCpct_axis = 20
 # curve can use two different y-axes for the two units of energy.
 scaleBatteryEnergy_to_SOCpct = 100/basicData$batteryCapacity_kWh
 
-```
-
-Axis limits and number of ticks for charge curve variables.
-
-```{r paged.print=FALSE}
+################################################################################
+# Axis limits and number of ticks for charge curve variables.
+################################################################################
 
 # UNDEGRADED battery capacity of charging curve battery.
 chargeCurve_batteryCapacity_kWh = max(dfChargeCurve$TotalEnergy)
@@ -1741,22 +1712,20 @@ axisScale_battPctPerHr_to_SOCaxis = maxSOCpct_axis/maxChargingPower_battPctPerHr
 maxBatteryEnergy_charging = 5*ceiling(chargeCurve_batteryCapacity_kWh/5)
 nTicksBatteryEnergy_charging = maxBatteryEnergy_charging/5
 
-```
-
-Axis limits of some plots when using the fineSpeeds vector for speeds.
-
-For axis limits, rather than basing them on the speeds I measured the vehicle at,
-I use a broader set of speeds (fineSpeeds vector), so I can plot the polynomial
-approximation curves over a wider speed range (and wider y-axis range) than when
-only plotting the measured data. I use the approximations above to generate
-approximation curves that are plotted across the full range of values.
-
-Currently I set many of these to constant values, and probably I should move these
-into basicData so they are visible for setting when configuring this file for a
-new car. However, I may later change these to compute the largest value that
-occurs and set the axis limit based on that.
-
-```{r paged.print=FALSE}
+################################################################################
+# Axis limits of some plots when using the fineSpeeds vector for speeds.
+#
+# For axis limits, rather than basing them on the speeds I measured the vehicle at,
+# I use a broader set of speeds (fineSpeeds vector), so I can plot the polynomial
+# approximation curves over a wider speed range (and wider y-axis range) than when
+# only plotting the measured data. I use the approximations above to generate
+# approximation curves that are plotted across the full range of values.
+#
+# Currently I set many of these to constant values, and probably I should move these
+# into basicData so they are visible for setting when configuring this file for a
+# new car. However, I may later change these to compute the largest value that
+# occurs and set the axis limit based on that.
+################################################################################
 
 # Limits for plotting % battery per unit distance with fineSpeeds.
 maxBatteryPctPerDist_fineSpeed = 1.0
@@ -1881,20 +1850,28 @@ nTicksDistPerBattery1pct_windSpeed = 2*maxDistPerBattery1pct_windSpeed
 maxDistPer_kWh_windSpeed = round(maxRange_windSpeed/scale_DistPer_kWh_to_Range)
 nTicksDistPer_kWh_windSpeed = 2*maxDistPer_kWh_windSpeed
 
-```
+################################################################################
+################################################################################
+# Beginning of plots.
+################################################################################
+################################################################################
 
-Beginning of plots.
+################################################################################
+# Note about use of title() in plots:
+# One wants to be able to control the distance of the title above the plot frame
+# INDEPENDENTLY OF the amount of margin space ABOVE the title. When the title is
+# drawn using the main= argument of plot(), its vertical position is CENTERED in
+# the top margin, so that there is no independent control, but rather, increasing
+# the top margin increases both the position of the title above the plot AND the
+# margin space above the title. The way around this is to use title() to plot the
+# title, which allows its position to be independently controlled using the
+# line= argument.
+################################################################################
 
-Note about use of title() in plots:
-One wants to be able to control the distance of the title above the plot frame INDEPENDENTLY OF the amount of margin space ABOVE
-the title. When the title is drawn using the main= argument of plot(), its vertical position is CENTERED in the top margin, so
-that there is no independent control, but rather, increasing the top margin increases both the position of the title above the
-plot AND the margin space above the title. The way around this is to use title() to plot the title, which allows its position to
-be independently controlled using the line= argument.
+################################################################################
+# Plot power as a function of speed.
+################################################################################
 
-Plot power as a function of speed.
-
-```{r fig.width=8.5, fig.height=5.5}
 # CT = battery charge used per unit time, P = power (energy per unit time), S = speed
 plotCT_PvsS = function(isPDF=FALSE)
     {
@@ -1950,14 +1927,14 @@ plotCT_PvsS = function(isPDF=FALSE)
         seg.len=4, cex=0.7)
     }
 
-plotCT_PvsS()
+if (plotToQuartz) plotCT_PvsS()
 
-```
+################################################################################
+# Plot estimated range based on battery with degradation at different speeds.
+# Add TWO right-side y-axes to show distance per battery percent and distance
+# per kWh. All of these are proportional to one another.
+################################################################################
 
-Plot estimated range based on battery with degradation at different speeds. Add TWO right-side y-axes to show distance per battery percent
-and distance per kWh. All of these are proportional to one another.
-
-```{r fig.width=8.5, fig.height=5.5}
 # R = range, DC = distance per consumed battery percent, DE = distance per unit energy, S = speed
 plotR_DC_DEvsS = function(isPDF=FALSE)
     {
@@ -1969,7 +1946,7 @@ plotR_DC_DEvsS = function(isPDF=FALSE)
     yaxp_right_1 = c(ylim_right_1, nTicksDistPerBattery1pct_fineSpeed)
     ylim_right_2 = c(0, maxDistPer_kWh_fineSpeed)
     yaxp_right_2 = c(ylim_right_2, nTicksDistPer_kWh_fineSpeed)
-    
+
     svpar = par(mai=par("mai")+c(0, 0.1, 0.3, 1.0), mgp=c(2.75, 0.75, 0))
 
     plot(NA, type='n', xlim=xlim, xaxp=xaxp, ylim=ylim_left, yaxp=yaxp_left, las=2, main="",
@@ -2024,12 +2001,12 @@ plotR_DC_DEvsS = function(isPDF=FALSE)
         seg.len=4, cex=0.5)
     }
 
-plotR_DC_DEvsS()
-```
+if (plotToQuartz) plotR_DC_DEvsS()
 
-Plot % battery per unit distance and watt-hours per unit distance at different speeds.
+################################################################################
+# Plot % battery per unit distance and watt-hours per unit distance at different speeds.
+################################################################################
 
-```{r fig.width=8.5, fig.height=5.5}
 # CD = battery charge used per unit distance, ED = energy per unit distance, S = speed
 plotCD_EDvsS = function(isPDF=FALSE)
     {
@@ -2077,7 +2054,7 @@ plotCD_EDvsS = function(isPDF=FALSE)
     ind = dta$addForApproximation
     if (any(ind))
         points(dta$speed[ind], dta$batteryPctPerDist[ind], pch=pch_est_data, col=col_est_data)
-    
+
     lines(dt_fineSpeeds$speed, dt_fineSpeeds$batteryPctPerDist_ord1, lwd=lwd_linear, lty=lty_linear, col=col_linear)
     lines(dt_fineSpeeds$speed, dt_fineSpeeds$batteryPctPerDist_derived, lwd=lwd_nonlinear, lty=lty_nonlinear, col=col_nonlinear)
 
@@ -2095,75 +2072,74 @@ plotCD_EDvsS = function(isPDF=FALSE)
         seg.len=4, cex=0.65)
     }
 
-plotCD_EDvsS()
+if (plotToQuartz) plotCD_EDvsS()
 
-```
+################################################################################
+# I want to be able to quickly answer the question: If I drive at X mph
+# and have Y % charge available, how far can I go? Those three parameters
+# can be plotted six different ways. The question might be worded
+# differently: If I have X miles to drive and drive at Y mph, what %
+# charge will I use? There are three different questions that can be
+# asked. The third is: If I have X % charge available and I want to drive
+# Y miles, how fast can I go? Any of the six graphs can answer any of the
+# three questions, depending on how you use the graph. I want to figure
+# out which question is most likely, and which plot is most useful. Time
+# is also of importance, and it can be determined from any two of speed,
+# distance travelled, and % charge used. So, there can be two sets of
+# curves plotted, using two different colors for the curve sets. The
+# curves allow you to see at a glance how one parameter (Y-axis) changes
+# as another (X-axis) is changed. So, we need to decide which parameter
+# will be X-axis, which will be Y-axis, and which two will be the sets of
+# curves, out of these four parameters: - Distance travelled D - Total
+# elapsed time T - Speed S - Percent charge used C
+#
+# If the X-axis is assigned to parameter x, Y-axis to parameter y, and the
+# curve sets to parameters p1 and p2, then we require functions of this
+# sort to compute the plotted curves: y = f1(x, p1) y = f2(x, p2) We know
+# functions f() and g() that let us compute: D = f(S, C) T = g(S, C) We
+# see that we don't have the necessary two different functions f1() and
+# f2() whose second argument is a different parameter. An alternative is
+# to use two Y-axes, on the left and right sides. In that case, the two
+# sets of plotted curves would both use the same parameter to distinguish
+# between each curve in the set. Then we COULD use our f() and g()
+# functions. C could be assigned to the X-axis, D to the left-side Y-axis,
+# and T to the right-side Y-axis, leaving S as the parameter that varies
+# between each curve in each curve set. I don't really like that solution
+# because I don't want to have two axes and I'd rather have the two sets
+# of curves use different parameters to distinguish the curves. Ideally
+# I'd like one set of curves to use D and the other to use T, so that S
+# and C are on the X- and Y-axes respectively. But to do that we would
+# need to invert f() and g(): C = f'(S, D) C = g'(S, T) Unfortunately, the
+# curves are not quite monotonic, see the points at 25, 30, and 35 mph in
+# the first plot above. But, if we delete the 25 mph point, it IS
+# monotonic, and the 25 mph point indicates that energy consumption goes
+# UP if you slow down too much, so it is safe to ignore that point anyway.
+# So we can do the function inversion. But there is still a problem. We
+# want the D and T values of the curves to be round numbers, not the
+# oddball numbers they happen to be in the data. Here's how we can deal
+# with the oddball numbers. The value of C directly scales the values of D
+# and T. So, we use speed S from table for each S (X-axis), get the D and
+# T for each S, then we can compute f'() and g'() as follows: For D: 1.
+# From the table we have distance and speed values d and S, where d is an
+# oddball value, and this is for C = 100% 2. For an arbitrary C, the
+# corresponding D is D = d*C/100 3. Likewise, for an arbitrary
+# (non-oddball) value of D, the corresponding C is C = 100*D/d For T: 1.
+# From the table we have time and speed values t and S, where t is an
+# oddball value, and this is for C = 100% 2. For an arbitrary C, the
+# corresponding T is T = t*C/100 3. Likewise, for an arbitrary
+# (non-oddball) value of T, the corresponding C is C = 100*T/t
+#
+# After making a plot with two separate sets of curves using two colors, I
+# decided it was too crowded, so I changed it to make two separate plots.
+#
+# D is in the range 191 to 440 miles, and if C = 5% the lower end becomes
+# about 9 miles. A nice set of D values for plotting would be seq(25, 400,
+# by=25) = 18 curves.
+#
+# This was enhanced to show battery energy on the right y-axis, since it is
+# directly proportional to state-of-charge.
+################################################################################
 
-I want to be able to quickly answer the question: If I drive at X mph
-and have Y % charge available, how far can I go? Those three parameters
-can be plotted six different ways. The question might be worded
-differently: If I have X miles to drive and drive at Y mph, what %
-charge will I use? There are three different questions that can be
-asked. The third is: If I have X % charge available and I want to drive
-Y miles, how fast can I go? Any of the six graphs can answer any of the
-three questions, depending on how you use the graph. I want to figure
-out which question is most likely, and which plot is most useful. Time
-is also of importance, and it can be determined from any two of speed,
-distance travelled, and % charge used. So, there can be two sets of
-curves plotted, using two different colors for the curve sets. The
-curves allow you to see at a glance how one parameter (Y-axis) changes
-as another (X-axis) is changed. So, we need to decide which parameter
-will be X-axis, which will be Y-axis, and which two will be the sets of
-curves, out of these four parameters: - Distance travelled D - Total
-elapsed time T - Speed S - Percent charge used C
-
-If the X-axis is assigned to parameter x, Y-axis to parameter y, and the
-curve sets to parameters p1 and p2, then we require functions of this
-sort to compute the plotted curves: y = f1(x, p1) y = f2(x, p2) We know
-functions f() and g() that let us compute: D = f(S, C) T = g(S, C) We
-see that we don't have the necessary two different functions f1() and
-f2() whose second argument is a different parameter. An alternative is
-to use two Y-axes, on the left and right sides. In that case, the two
-sets of plotted curves would both use the same parameter to distinguish
-between each curve in the set. Then we COULD use our f() and g()
-functions. C could be assigned to the X-axis, D to the left-side Y-axis,
-and T to the right-side Y-axis, leaving S as the parameter that varies
-between each curve in each curve set. I don't really like that solution
-because I don't want to have two axes and I'd rather have the two sets
-of curves use different parameters to distinguish the curves. Ideally
-I'd like one set of curves to use D and the other to use T, so that S
-and C are on the X- and Y-axes respectively. But to do that we would
-need to invert f() and g(): C = f'(S, D) C = g'(S, T) Unfortunately, the
-curves are not quite monotonic, see the points at 25, 30, and 35 mph in
-the first plot above. But, if we delete the 25 mph point, it IS
-monotonic, and the 25 mph point indicates that energy consumption goes
-UP if you slow down too much, so it is safe to ignore that point anyway.
-So we can do the function inversion. But there is still a problem. We
-want the D and T values of the curves to be round numbers, not the
-oddball numbers they happen to be in the data. Here's how we can deal
-with the oddball numbers. The value of C directly scales the values of D
-and T. So, we use speed S from table for each S (X-axis), get the D and
-T for each S, then we can compute f'() and g'() as follows: For D: 1.
-From the table we have distance and speed values d and S, where d is an
-oddball value, and this is for C = 100% 2. For an arbitrary C, the
-corresponding D is D = d*C/100 3. Likewise, for an arbitrary
-(non-oddball) value of D, the corresponding C is C = 100*D/d For T: 1.
-From the table we have time and speed values t and S, where t is an
-oddball value, and this is for C = 100% 2. For an arbitrary C, the
-corresponding T is T = t*C/100 3. Likewise, for an arbitrary
-(non-oddball) value of T, the corresponding C is C = 100*T/t
-
-After making a plot with two separate sets of curves using two colors, I
-decided it was too crowded, so I changed it to make two separate plots.
-
-D is in the range 191 to 440 miles, and if C = 5% the lower end becomes
-about 9 miles. A nice set of D values for plotting would be seq(25, 400,
-by=25) = 18 curves.
-
-This was enhanced to show battery energy on the right y-axis, since it is
-directly proportional to state-of-charge.
-
-```{r fig.width=8.5, fig.height=5.5}
 # D = distance, S = speed, C = battery percent charge used, E = battery energy
 plotDvsSCE = function(isPDF=FALSE)
     {
@@ -2222,21 +2198,20 @@ plotDvsSCE = function(isPDF=FALSE)
     par(svpar)
     }
 
-plotDvsSCE()
+if (plotToQuartz) plotDvsSCE()
 
-```
-Now the same thing except plot elapsed time curves instead of distance
-curves.
+################################################################################
+# Now the same thing except plot elapsed time curves instead of distance curves.
+#
+# T is in the range 2.5 to 17.5 hours, and if C = 5% the lower end becomes
+# about 1/8 hour. A nice set of T values for plotting would be seq(1, 16)
+# = 16 curves. Actually, I don't like that. We want at least 30 minutes
+# resolution. And 16 hours is way too much. How about seq(0.5, 10, by=0.5)
+# = 20 curves. But after looking at it, we want 15-minute resolution below
+# 3 hours, and only 1 hour resolution above 5 hours. Use c(seq(0.25, 3,
+# by=0.25), seq(3.5, 5, by=0.5), seq(6, 10, by=1)) = 21 curves.
+################################################################################
 
-T is in the range 2.5 to 17.5 hours, and if C = 5% the lower end becomes
-about 1/8 hour. A nice set of T values for plotting would be seq(1, 16)
-= 16 curves. Actually, I don't like that. We want at least 30 minutes
-resolution. And 16 hours is way too much. How about seq(0.5, 10, by=0.5)
-= 20 curves. But after looking at it, we want 15-minute resolution below
-3 hours, and only 1 hour resolution above 5 hours. Use c(seq(0.25, 3,
-by=0.25), seq(3.5, 5, by=0.5), seq(6, 10, by=1)) = 21 curves.
-
-```{r fig.width=8.5, fig.height=5.5}
 # T = hour, S = speed, C = battery use in percent, E = battery energy use
 plotTvsSCE = function(isPDF=FALSE)
     {
@@ -2259,9 +2234,9 @@ plotTvsSCE = function(isPDF=FALSE)
     yaxp_left = c(ylim_left, nTicksSOCpct_axis)
     ylim_right = c(0, maxBatteryEnergy_fineSpeed)
     yaxp_right = c(ylim_right, nTicksBatteryEnergy_fineSpeed)
-    
+
     svpar = par(mai=par("mai")+c(0, 0.1, 0.2, 0.6), mgp=c(2.5, 0.75, 0))
-    
+
     plot(NA, type='n', xlim=xlim, xaxp=xaxp, ylim=ylim_left, yaxp=yaxp_left, las=2, main="",
         xlab=tprintf("Speed on flat road (~speed@)"),
         ylab=tprintf("~battery_pct_long` used (%)"))
@@ -2281,7 +2256,7 @@ plotTvsSCE = function(isPDF=FALSE)
     par(xaxp=xaxp)
     par(yaxp=yaxp_left)
     grid(lwd=lwd_grid, lty=lty_grid, col=col_grid)
-    
+
     for (hours in colnames(mtxBatteryPct))
         {
         lines(dt_fineSpeeds$speed, mtxBatteryPct[,hours], lwd=lwd_derived_data_many, col=col_derived_data)
@@ -2291,13 +2266,12 @@ plotTvsSCE = function(isPDF=FALSE)
     par(svpar)
     }
 
-plotTvsSCE()
+if (plotToQuartz) plotTvsSCE()
 
-```
+################################################################################
+# Plot the previous in a different way, swapping the X-axis and curve parameters.
+################################################################################
 
-Plot the previous in a different way, swapping the X-axis and curve parameters.
-
-```{r fig.width=8.5, fig.height=5.5}
 # S = speed, D = distance, C = battery use in percent, E = battery energy use, E = battery energy use
 plotSvsDCE = function(isPDF=FALSE)
     {
@@ -2320,9 +2294,9 @@ plotSvsDCE = function(isPDF=FALSE)
     yaxp_left = c(ylim_left, nTicksSOCpct_axis)
     ylim_right = c(0, maxBatteryEnergy_fineSpeed)
     yaxp_right = c(ylim_right, nTicksBatteryEnergy_fineSpeed)
-    
+
     svpar = par(mai=par("mai")+c(0, 0.1, 0.2, 0.6), mgp=c(2.5, 0.75, 0))
-    
+
     plot(NA, type='n', xlim=xlim, xaxp=xaxp, ylim=ylim_left, yaxp=yaxp_left, las=2, main="",
         xlab=tprintf("Distance travelled (~dist_long_plural@)"),
         ylab=tprintf("~battery_pct_long` used (%)"))
@@ -2342,7 +2316,7 @@ plotSvsDCE = function(isPDF=FALSE)
     par(xaxp=xaxp)
     par(yaxp=yaxp_left)
     grid(lwd=lwd_grid, lty=lty_grid, col=col_grid)
-    
+
     for (speed in rownames(mtxBattery))
         {
         lines(fineDists, mtxBattery[speed,], lwd=lwd_derived_data_many)
@@ -2352,12 +2326,12 @@ plotSvsDCE = function(isPDF=FALSE)
     par(svpar)
     }
 
-plotSvsDCE()
+if (plotToQuartz) plotSvsDCE()
 
-```
-Now the same thing except X-axis is elapsed hours instead of distance.
+################################################################################
+# Now the same thing except X-axis is elapsed hours instead of distance.
+################################################################################
 
-```{r fig.width=8.5, fig.height=5.5}
 # S = speed, T = hour, C = consumption, E = battery energy use
 plotSvsTCE = function(isPDF=FALSE)
     {
@@ -2365,7 +2339,7 @@ plotSvsTCE = function(isPDF=FALSE)
     # lines.
     maxHours = 9
     nTicks = maxHours
-    
+
     # Even though these are straight lines we are plotting, nevertheless compute them at many points so we can
     # search those points for a good place to put the speed label, and so they will extend to the limit of 100%.
     fineHours = seq(0, maxHours, by=0.01)
@@ -2381,9 +2355,9 @@ plotSvsTCE = function(isPDF=FALSE)
     yaxp_left = c(ylim_left, nTicksSOCpct_axis)
     ylim_right = c(0, maxBatteryEnergy_fineSpeed)
     yaxp_right = c(ylim_right, nTicksBatteryEnergy_fineSpeed)
-    
+
     svpar = par(mai=par("mai")+c(0, 0.1, 0.2, 0.6), mgp=c(2.5, 0.75, 0))
-    
+
     plot(NA, type='n', xlim=xlim, xaxp=xaxp, ylim=ylim_left, yaxp=yaxp_left, las=2, main="",
         xlab=tprintf("Elapsed time (~time_long_plural@)"),
         ylab=tprintf("~battery_pct_long` used (%)"))
@@ -2403,7 +2377,7 @@ plotSvsTCE = function(isPDF=FALSE)
     par(xaxp=xaxp)
     par(yaxp=yaxp_left)
     grid(lwd=lwd_grid, lty=lty_grid, col=col_grid)
-    
+
     for (speed in rownames(mtxBattery))
         {
         lines(fineHours, mtxBattery[speed,], lwd=lwd_derived_data_many)
@@ -2413,13 +2387,12 @@ plotSvsTCE = function(isPDF=FALSE)
     par(svpar)
     }
 
-plotSvsTCE()
+if (plotToQuartz) plotSvsTCE()
 
-```
+################################################################################
+# Plot Howard Johnson's dist_per_cost (distance per unit currency).
+################################################################################
 
-Plot Howard Johnson's dist_per_cost (distance per unit currency).
-
-```{r fig.width=8.5, fig.height=5.5}
 # DPM = distance per money, S = speed
 plotDPMvsS = function(isPDF=FALSE)
     {
@@ -2429,9 +2402,9 @@ plotDPMvsS = function(isPDF=FALSE)
     yaxp_left = c(ylim_left, nTicksDistPerCost_fineSpeed)
     ylim_right = c(0, maxDistPerUnitFuel_fineSpeed_1)
     yaxp_right = c(ylim_right, nTicksDistPerUnitFuel_fineSpeed_1)
-    
+
     svpar = par(mai=par("mai")+c(0, 0.1, 0.5, 0.6), mgp=c(2.5, 0.75, 0))
-    
+
     plot(NA, type='n', xlim=xlim, xaxp=xaxp, ylim=ylim_left, yaxp=yaxp_left, las=2, main="",
         xlab=tprintf("Speed on flat road (~speed@)"),
         ylab=tprintf("~dist_per_cost_long` (~dist_per_cost@)"))
@@ -2473,17 +2446,16 @@ plotDPMvsS = function(isPDF=FALSE)
         lty=c(NA, lty_dist, lty_dist_per_fuel, lty_dist),
         pch=c(pch_derived_data, NA, NA, NA),
         seg.len=4, cex=0.55)
-    
+
     par(svpar)
     }
 
-plotDPMvsS()
+if (plotToQuartz) plotDPMvsS()
 
-```
+################################################################################
+# Plot inverse of previous left-side y-axis.
+################################################################################
 
-Plot inverse of previous left-side y-axis.
-
-```{r fig.width=8.5, fig.height=5.5}
 # MPD = money per distance, S = speed
 plotMPDvsS = function(isPDF=FALSE)
     {
@@ -2493,7 +2465,7 @@ plotMPDvsS = function(isPDF=FALSE)
     yaxp_left = c(ylim_left, nTicksCostPerDist_fineSpeed)
     ylim_right = c(0, maxDistPerUnitFuel_fineSpeed_2)
     yaxp_right = c(ylim_right, nTicksDistPerUnitFuel_fineSpeed_2)
-    
+
     svpar = par(mai=par("mai")+c(0, 0.1, 0.5, 0.6), mgp=c(2.5, 0.75, 0))
 
     plot(NA, type='n', xlim=xlim, xaxp=xaxp, ylim=ylim_left, yaxt='n', las=2, main="",
@@ -2530,7 +2502,7 @@ plotMPDvsS = function(isPDF=FALSE)
     # used in plotting.
     DistPerUnitFuel = dt_fineSpeeds$distPerUnitFuel * scaleCostPerDist_to_DistPerUnitFuel_fineSpeed
     lines(dt_fineSpeeds$speed, DistPerUnitFuel, col=col_dist_per_fuel, lty=lty_dist_per_fuel, lwd=lwd_dist_per_fuel)
-    
+
     # Legend.
     legend("top",
         legend=c(
@@ -2543,18 +2515,17 @@ plotMPDvsS = function(isPDF=FALSE)
         lty=c(lty_dist_per_fuel, lty_dist, NA, lty_dist),
         pch=c(NA, NA, pch_elect, NA),
         seg.len=4, cex=ifelse(isPDF, 0.6, 0.7))
-    
+
     par(svpar)
     }
 
-plotMPDvsS()
+if (plotToQuartz) plotMPDvsS()
 
-```
+################################################################################
+# Plot cost per big distance and per hour of driving, at different speeds,
+# assuming a kWh price and a gasoline price and mileage.
+################################################################################
 
-Plot cost per big distance and per hour of driving, at different speeds,
-assuming a kWh price and a gasoline price and mileage.
-
-```{r fig.width=8.5, fig.height=5.5}
 # M = money, S = speed
 plotMvsS = function(isPDF=FALSE)
     {
@@ -2564,7 +2535,7 @@ plotMvsS = function(isPDF=FALSE)
     yaxp_left = c(ylim_left, nTicksCostForDistHours_fineSpeed)
     ylim_right = c(0, maxDistPerUnitFuel_fineSpeed_3)
     yaxp_right = c(ylim_right, nTicksDistPerUnitFuel_fineSpeed_3)
-    
+
     svpar = par(mai=par("mai")+c(0, 0.1, 0.5, 0.6), mgp=c(2.5, 0.75, 0))
 
     plot(NA, type='n', xlim=xlim, xaxp=xaxp, ylim=ylim_left, yaxt='n', las=2, main="",
@@ -2592,7 +2563,7 @@ plotMvsS = function(isPDF=FALSE)
     par(xaxp=xaxp)
     par(yaxp=yaxp_left)
     grid(lwd=lwd_grid, lty=lty_grid, col=col_grid)
-    
+
     # Electricity and fuel costs at speeds for distance driven and time driven.
     points(dt$speed, dt$electCostForFixedDist, pch=pch_elect, col=col_derived_data)
     lines(dt_fineSpeeds$speed, dt_fineSpeeds$electCostForFixedDist, col=col_elect, lty=lty_dist, lwd=lwd_elect)
@@ -2605,7 +2576,7 @@ plotMvsS = function(isPDF=FALSE)
     # used in plotting.
     DistPerUnitFuel = round(dt_fineSpeeds$distPerUnitFuel * scaleCostPerDist_to_DistPerUnitFuel_fineSpeed, 3)
     lines(dt_fineSpeeds$speed, DistPerUnitFuel, col=col_dist_per_fuel, lty=lty_dist_per_fuel, lwd=lwd_dist_per_fuel)
-    
+
     # Legend.
     legend("top",
         legend=c(
@@ -2618,18 +2589,17 @@ plotMvsS = function(isPDF=FALSE)
         lty=c(lty_dist_per_fuel, lty_dist, lty_time, lty_dist, lty_time),
         lwd=c(lwd_dist_per_fuel, lwd_fuel, lwd_fuel, lwd_elect, lwd_elect),
         pch=c(NA, NA, NA, pch_derived_data, pch_elect), seg.len=4, cex=0.6)
-    
+
     if (!isPDF)
         par(svpar)
     }
 
-plotMvsS()
+if (plotToQuartz) plotMvsS()
 
-```
+################################################################################
+# Plot range vs speed at different grades uphill and downhill.
+################################################################################
 
-Plot range vs speed at different grades uphill and downhill.
-
-```{r fig.width=8.5, fig.height=5.5}
 # R = range, S = speed, G = grade
 plotRvsSG = function(isPDF=FALSE)
     {
@@ -2658,7 +2628,7 @@ plotRvsSG = function(isPDF=FALSE)
     yaxp_left = axpRange_Grade_log
     ylim_right = c(minDistPerBatteryPct_Grade_log, maxDistPerBatteryPct_Grade_log)
     yaxp_right = yaxp_left
-    
+
     svpar = par(mai=par("mai")+c(0, 0.1, 0.85, 0.5), mgp=c(2.5, 0.75, 0))
 
     plot(NA, type='n', xlim=xlim, xaxp=xaxp, ylim=ylim_left, yaxp=yaxp_left, ylog=TRUE, log="y", las=2, cex.axis=0.8, main="",
@@ -2681,7 +2651,7 @@ plotRvsSG = function(isPDF=FALSE)
     par(xaxp=xaxp)
     par(yaxp=yaxp_left)
     grid(lwd=lwd_grid, lty=lty_grid, col=col_grid, equilogs=FALSE)
-    
+
     for (grade in grades)
         {
         ranges = mtxRange[, as.character(grade)]
@@ -2707,12 +2677,12 @@ plotRvsSG = function(isPDF=FALSE)
     par(svpar)
     }
 
-plotRvsSG()
-```
+if (plotToQuartz) plotRvsSG()
 
-Plot range vs speed at different elevation changes uphill and downhill.
+################################################################################
+# Plot range vs speed at different elevation changes uphill and downhill.
+################################################################################
 
-```{r fig.width=8.5, fig.height=5.5}
 # R = range, S = speed, V = elevation change
 plotRvsSV = function(isPDF=FALSE)
     {
@@ -2741,7 +2711,7 @@ plotRvsSV = function(isPDF=FALSE)
     yaxp_left = c(ylim_left, nTicksRange_ElevChg_fineSpeed)
     ylim_right = c(0, maxDistPerBatteryPct_ElevChg_fineSpeed)
     yaxp_right = c(ylim_right, nTicksDistPerBatteryPct_ElevChg_fineSpeed)
-    
+
     svpar = par(mai=par("mai")+c(0, 0.1, 0.85, 0.5), mgp=c(2.5, 0.75, 0))
 
     plot(NA, type='n', xlim=xlim, xaxp=xaxp, ylim=ylim_left, yaxp=yaxp_left, las=2, cex.axis=0.8, main="",
@@ -2764,7 +2734,7 @@ plotRvsSV = function(isPDF=FALSE)
     par(xaxp=xaxp)
     par(yaxp=yaxp_left)
     grid(lwd=lwd_grid, lty=lty_grid, col=col_grid, equilogs=FALSE)
-    
+
     for (elevChg in elevChgs)
         {
         ranges = mtxRange[, as.character(elevChg)]
@@ -2781,18 +2751,17 @@ plotRvsSV = function(isPDF=FALSE)
     par(svpar)
     }
 
-plotRvsSV()
-```
+if (plotToQuartz) plotRvsSV()
 
-Plot power vs speed at different temperatures/elevations as those affect
-drag.
+################################################################################
+# Plot power vs speed at different temperatures/elevations as those affect drag.
+################################################################################
 
-```{r fig.width=8.5, fig.height=5.5}
 # P = power, S = speed, AIR = air density
 plotCT_PvsS_AIR = function(isPDF=FALSE)
     {
     airConditionsAndSpeeds = list()
-    
+
     # Compute power required to overcome drag under different conditions, and also convert air condition units from the
     # ones they are expressed in to the ones being used to plot.
     for (cond in names(airConditionsToPlot))
@@ -2834,7 +2803,7 @@ plotCT_PvsS_AIR = function(isPDF=FALSE)
 
     cex = 0.75
     mtext(makeStringList("~EVdesc@", "~conditions@", "~totalWeight@", "~drag@", "~areaFrontal@", "~airdens@", "~battDeg@", "~SOC100@",
-        "~energyEfficiency_pct@% energy efficiency factor applied to compute drag power and power excl. drag", 
+        "~energyEfficiency_pct@% energy efficiency factor applied to compute drag power and power excl. drag",
         c("3rd-order approx. for Flat Road ", apx$Speed_Power$ord3$textplus), cex=cex),
         side=3, line=0.2, adj=0, cex=cex)
 
@@ -2847,7 +2816,7 @@ plotCT_PvsS_AIR = function(isPDF=FALSE)
     par(xaxp=xaxp)
     par(yaxp=yaxp_left)
     grid(lwd=lwd_grid, lty=lty_grid, col=col_grid)
-    
+
     lines(fineSpeeds, totalPower_fineSpeeds, lwd=3, lty="solid")
     lines(fineSpeeds, baselinePower_fineSpeeds, lwd=3, lty="dotted")
     for (cond in names(airConditionsToPlot))
@@ -2878,12 +2847,13 @@ plotCT_PvsS_AIR = function(isPDF=FALSE)
     par(svpar)
     }
 
-plotCT_PvsS_AIR()
-```
+if (plotToQuartz) plotCT_PvsS_AIR()
 
-Plot energy consumption per unit distance vs speed at different wind speeds, as wind affects drag.
+################################################################################
+# Plot energy consumption per unit distance vs speed at different wind speeds,
+# as wind affects drag.
+################################################################################
 
-```{r fig.width=8.5, fig.height=5.5}
 # CD = battery charge used per unit distance, ED = energy consumption per unit distance, S = speed, WIND = wind speed
 plotCD_EDvsS_WIND = function(isPDF=FALSE)
     {
@@ -2945,12 +2915,12 @@ plotCD_EDvsS_WIND = function(isPDF=FALSE)
     par(svpar)
     }
 
-plotCD_EDvsS_WIND()
-```
+if (plotToQuartz) plotCD_EDvsS_WIND()
 
-Plot power vs speed at different wind speeds as wind affects drag.
+################################################################################
+# Plot power vs speed at different wind speeds as wind affects drag.
+################################################################################
 
-```{r fig.width=8.5, fig.height=5.5}
 # P = power, S = speed, WIND = wind speed
 plotCT_PvsS_WIND = function(isPDF=FALSE)
     {
@@ -2995,7 +2965,7 @@ plotCT_PvsS_WIND = function(isPDF=FALSE)
     par(xaxp=xaxp)
     par(yaxp=yaxp_left)
     grid(lwd=lwd_grid, lty=lty_grid, col=col_grid)
-    
+
     for (windSpeed in windSpeeds)
         {
         battPctPerHr = mtx[as.character(windSpeed),]
@@ -3013,12 +2983,12 @@ plotCT_PvsS_WIND = function(isPDF=FALSE)
     par(svpar)
     }
 
-plotCT_PvsS_WIND()
-```
+if (plotToQuartz) plotCT_PvsS_WIND()
 
-Plot range vs speed at different wind speeds as wind affects drag.
+################################################################################
+# Plot range vs speed at different wind speeds as wind affects drag.
+################################################################################
 
-```{r fig.width=8.5, fig.height=5.5}
 # R = range, DC = distance per consumed battery percent, DE = distance per unit energy, S = speed, WIND = wind speed
 plotR_DC_DEvsS_WIND = function(isPDF=FALSE)
     {
@@ -3089,12 +3059,12 @@ plotR_DC_DEvsS_WIND = function(isPDF=FALSE)
     par(svpar)
     }
 
-plotR_DC_DEvsS_WIND()
-```
+if (plotToQuartz) plotR_DC_DEvsS_WIND()
 
-Plot charging time and charging power as a function of SOC (state-of-charge).
+################################################################################
+# Plot charging time and charging power as a function of SOC (state-of-charge).
+################################################################################
 
-```{r fig.width=8.5, fig.height=5.5}
 # CT = charging time, CP = charging power, SOC = state-of-charge
 plotCT_CPvsSOC = function(isPDF=FALSE)
     {
@@ -3106,7 +3076,7 @@ plotCT_CPvsSOC = function(isPDF=FALSE)
     yaxp_right = c(ylim_right, nTicksChargingPower_kW_charging)
 
     svpar = par(mai=par("mai")+c(0, 0.1, 0.2, 0.6), mgp=c(2.5, 0.75, 0))
-    
+
     plot(NA, type='n', xlim=xlim, xaxp=xaxp, ylim=ylim_left, yaxp=yaxp_left, las=2, yaxt="n", main="", ylab="",
         xlab=tprintf("State-of-Charge (SOC, %)"))
     title(tprintf("Time to charge from 0% to 100% state-of-charge"), line=3, cex.main=1.1)
@@ -3118,7 +3088,7 @@ plotCT_CPvsSOC = function(isPDF=FALSE)
         "(Assume charging is done at the maximum possible rate equal to the charging power shown on the right axis)"
         ),
         side=3, line=0.25, cex=0.8)
-    
+
     # Left-side y-axis.
     labels = pretty.good2(ylim_left, yaxp_left[3])
     at = labels
@@ -3144,12 +3114,12 @@ plotCT_CPvsSOC = function(isPDF=FALSE)
     par(svpar)
     }
 
-plotCT_CPvsSOC()
-```
+if (plotToQuartz) plotCT_CPvsSOC()
 
-Plot state-of-charge and charging power as a function of charging time.
+################################################################################
+# Plot state-of-charge and charging power as a function of charging time.
+################################################################################
 
-```{r fig.width=8.5, fig.height=5.5}
 # SOC = state-of-charge, BE = battery energy, CP = charging power, CR = charge rate, CT = charging time
 plotSOC_BE_CP_CR_vsCT = function(isPDF=FALSE)
     {
@@ -3159,13 +3129,13 @@ plotSOC_BE_CP_CR_vsCT = function(isPDF=FALSE)
     yaxp_left_1 = c(ylim_left_1, nTicksSOCpct_axis)
     ylim_left_2 = c(0, maxBatteryEnergy_charging)
     yaxp_left_2 = c(ylim_left_2, nTicksBatteryEnergy_charging)
-    ylim_right_1 = c(0, maxChargingPower_battPctPerHr_charging) 
-    yaxp_right_1 = c(ylim_right_1, nTicksChargingPower_battPctPerHr_charging) 
+    ylim_right_1 = c(0, maxChargingPower_battPctPerHr_charging)
+    yaxp_right_1 = c(ylim_right_1, nTicksChargingPower_battPctPerHr_charging)
     ylim_right_2 = c(0, maxChargingPower_kW_charging)
     yaxp_right_2 = c(ylim_right_2, nTicksChargingPower_kW_charging)
-    
+
     svpar = par(mai=par("mai")+c(0, 0.7, 0.2, 1.1), mgp=c(2, 0.75, 0))
-    
+
     plot(NA, type='n', xlim=xlim, xaxp=xaxp, ylim=ylim_left_1, yaxp=yaxp_left_1, las=2, yaxt="n", main="", ylab="",
         xlab=tprintf("Charge time (minutes)"))
     title(tprintf("Battery energy and charging power as time passes when charging from 0% to 100% state-of-charge"), line=3, cex.main=0.9)
@@ -3213,7 +3183,7 @@ plotSOC_BE_CP_CR_vsCT = function(isPDF=FALSE)
     par(xaxp=xaxp)
     par(yaxp=yaxp_left_1)
     grid(lwd=lwd_grid, lty=lty_grid, col=col_grid)
-    
+
     lines(dfChargeCurve$Minutes, dfChargeCurve$TotalEnergy*scale_kWh_to_BatteryPct_charging, lwd=2, col=col_charge_batteryEnergy)
     lines(dfChargeCurve$Minutes, dfChargeCurve$Power*axisScale_kW_to_BatteryPct, lwd=2, col=col_charging_power)
 
@@ -3223,13 +3193,19 @@ plotSOC_BE_CP_CR_vsCT = function(isPDF=FALSE)
     par(svpar)
     }
 
-plotSOC_BE_CP_CR_vsCT()
-```
+if (plotToQuartz) plotSOC_BE_CP_CR_vsCT()
 
-Make a text page at start of PDF file to tell reader my email address
-and announce GNU license.
+################################################################################
+################################################################################
+# End of plot functions.
+################################################################################
+################################################################################
 
-```{r fig.width=12, fig.height=10}
+################################################################################
+# Make a text page at start of PDF file to tell reader my email address and
+# announce GNU license.
+################################################################################
+
 plotText = function(txt, justify="center", cex=1)
     {
     x = switch(justify,
@@ -3289,12 +3265,15 @@ plotHeader = function(cex=1)
         sep=""), justify="left", cex=cex)
     }
 
-plotHeader()
-```
+if (plotToQuartz) plotHeader()
 
-Plot all of the above plots to a PDF file, multiple plots per page.
+################################################################################
+# Plot all of the above plots to a PDF file, multiple plots per page.
+#
+# In some cases I have changed the order of plots from the order they appear
+# above.
+################################################################################
 
-```{r fig.width=12, fig.height=10}
 fn = file.path(basicData_plot$pdfDirectory,
     paste0(basicData_plot$pdfAllPlotsFilename, ifelse(useMetricInPlots, "_metric", "_imperial"),
         ifelse(useBWcolors, "_gray", "_colors"), ".pdf"))
@@ -3338,11 +3317,11 @@ par(svpar)
 plotCT_CPvsSOC(TRUE)
 plotSOC_BE_CP_CR_vsCT(TRUE)
 dev.off()
-```
 
-Plot only the range plots to a PDF file, multiple plots per page.
+################################################################################
+# Plot only the range plots to a PDF file, multiple plots per page.
+################################################################################
 
-```{r fig.width=12, fig.height=10}
 fn = file.path(basicData_plot$pdfDirectory,
     paste0(basicData_plot$pdfSomePlotsFilename, ifelse(useMetricInPlots, "_metric", "_imperial"),
         ifelse(useBWcolors, "_gray", "_colors"), ".pdf"))
@@ -3373,6 +3352,16 @@ plotSvsTCE(TRUE)
 par(svpar)
 
 dev.off()
-```
 
-End of file.
+################################################################################
+# End of the two "for" loops that loop for useMetricInPlots and useBWcolors.
+################################################################################
+
+}
+}
+
+################################################################################
+################################################################################
+# End of file.
+################################################################################
+################################################################################
