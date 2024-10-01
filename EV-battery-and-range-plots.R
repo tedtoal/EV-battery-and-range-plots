@@ -786,18 +786,23 @@ DAft_in_ft_degF_inHg = function(elevation_ft, temp_degF, barometer_inHg, verbose
 # Air density as a function of density altitude in feet, kg/m^3.
 rhoMetric_in_DAft = function(densAltitude_ft) rho_std*(Tk_std-tempLapse_degC_per_ft*densAltitude_ft)/Tk_std
 
-# Drag force in Newtons at a given speed, air density, frontal area, and drag coefficient.
+# Drag force in Newtons at a given speed, air density, frontal area, and drag coefficient. When mph is negative, this isn't
+# right because there is going to be a different drag coefficient when the air hits the car from behind. But I don't know that
+# coefficient, so this will underestimate drag force in that case.
 dragForceN_in_mph_metric = function(mph, rho, frontalArea_sq_m, dragCoef) dragCoef*rho*frontalArea_sq_m*(mph*mps_per_mph)^2/2
 
 # Power in kW required to overcome drag at a given speed, air density, frontal area, and drag coefficient.
-# Include the additional energy required due to losses in energy conversion (energyEfficiency_pct).
-dragPower_kW_in_mph_metric = function(mph, rho, frontalArea_sq_m, dragCoef)
-    round(dragForceN_in_mph_metric(mph, rho, frontalArea_sq_m, dragCoef)*mph*mps_per_mph/1000/(basicData_plot$energyEfficiency_pct/100), 3)
+# Include the additional energy required due to losses in energy conversion (energyEfficiency), or, if mph is negative,
+# include the additional energy captured by regen (regenEfficiency) in the returned NEGATIVE power value.
+dragPower_kW_in_mph_metric = function(mph, rho, frontalArea_sq_m, dragCoef, energyEfficiency, regenEfficiency)
+    round(dragForceN_in_mph_metric(mph, rho, frontalArea_sq_m, dragCoef) * mph * mps_per_mph / 1000 /
+        ifelse(mph >= 0, energyEfficiency, regenEfficiency), 3)
 
 # Power in kW required to overcome drag at a given speed, air density, for vehicle that was tested. Include the
 # additional energy required due to losses in energy conversion (energyEfficiency_pct).
 dragPower_kW_TestVehicle_in_mph_metric = function(mph, rho)
-    dragPower_kW_in_mph_metric(mph, rho, basicData_plot$frontalArea, basicData_plot$coefDrag)
+    dragPower_kW_in_mph_metric(mph, rho, basicData_plot$frontalArea, basicData_plot$coefDrag,
+        basicData_plot$energyEfficiency_pct/100, basicData_plot$regenEfficiency_pct/100)
 
 # Convert a speed (any units) and a road grade (in percent, positive for up, negative for down) into the speed in
 # the vertical direction. Approximate, assumes grade small and hypotenuse about the same as x-distance.
