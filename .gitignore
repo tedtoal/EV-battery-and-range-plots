@@ -60,3 +60,7 @@ rsconnect/
 
 # Excel files.
 *.xlsx
+
+# We have switched from using a .Rmd file to a .R file. Ignore all .Rmd files, so
+# we can keep an old copy of the .Rmd file around for reference.
+*.Rmd
