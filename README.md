@@ -1,6 +1,7 @@
 # EV-battery-and-range-plots.R
 R program for plotting EV energy/mile at different speeds, and various related plots
 
+#### V8 release 1-Oct-2024: Fix bugs in wind plots: incorrect vehicle speed, incorrect regen efficiency.
 #### V7 release 29-Sep-2024: switch the .Rmd code file over to a pure .R code file, still run using RStudio. Changes to charging plots.
 #### V6 release 28-Sep-2024: many changes including new plots, addition of energy efficiency, some bug fixes, reorganization to improve code.
 #### V5 release 8-Aug-2024: fix missing linear and quadratic approximations in first plot.

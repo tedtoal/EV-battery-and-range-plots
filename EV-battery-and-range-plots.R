@@ -786,22 +786,26 @@ DAft_in_ft_degF_inHg = function(elevation_ft, temp_degF, barometer_inHg, verbose
 # Air density as a function of density altitude in feet, kg/m^3.
 rhoMetric_in_DAft = function(densAltitude_ft) rho_std*(Tk_std-tempLapse_degC_per_ft*densAltitude_ft)/Tk_std
 
-# Drag force in Newtons at a given speed, air density, frontal area, and drag coefficient. When mph is negative, this isn't
-# right because there is going to be a different drag coefficient when the air hits the car from behind. But I don't know that
-# coefficient, so this will underestimate drag force in that case.
-dragForceN_in_mph_metric = function(mph, rho, frontalArea_sq_m, dragCoef) dragCoef*rho*frontalArea_sq_m*(mph*mps_per_mph)^2/2
+# Drag force in Newtons at a given air speed, air density, frontal area, and drag coefficient. When airspeed_mph is negative,
+# this isn't right because there is going to be a different drag coefficient when the air hits the car from behind. But I don't
+# know that coefficient, so this will underestimate drag force in that case. This returns a NEGATIVE force when airspeed_mph is
+# negative.
+dragForceN_airspeed_in_mph = function(airspeed_mph, rho, frontalArea_sq_m, dragCoef)
+    dragCoef*rho*frontalArea_sq_m*(airspeed_mph*mps_per_mph)^2*sign(airspeed_mph)/2
 
-# Power in kW required to overcome drag at a given speed, air density, frontal area, and drag coefficient.
-# Include the additional energy required due to losses in energy conversion (energyEfficiency), or, if mph is negative,
-# include the additional energy captured by regen (regenEfficiency) in the returned NEGATIVE power value.
-dragPower_kW_in_mph_metric = function(mph, rho, frontalArea_sq_m, dragCoef, energyEfficiency, regenEfficiency)
-    round(dragForceN_in_mph_metric(mph, rho, frontalArea_sq_m, dragCoef) * mph * mps_per_mph / 1000 /
-        ifelse(mph >= 0, energyEfficiency, regenEfficiency), 3)
+# Power in kW required to overcome drag at a given vehicle speed, air speed, air density, frontal area, and drag coefficient.
+# Include the additional energy required due to losses in energy conversion (energyEfficiency), or, if airspeed_mph is negative,
+# the returned NEGATIVE power value (power is generated, not consumed) is REDUCED by the energy capture efficiency (regenEfficiency).
+dragPower_kW_speeds_in_mph = function(vehicle_mph, airspeed_mph, rho, frontalArea_sq_m, dragCoef, energyEfficiency, regenEfficiency)
+    round(dragForceN_airspeed_in_mph(airspeed_mph, rho, frontalArea_sq_m, dragCoef) * vehicle_mph * mps_per_mph *
+        ifelse(airspeed_mph >= 0, 1/energyEfficiency, regenEfficiency) / 1000, 3)
 
-# Power in kW required to overcome drag at a given speed, air density, for vehicle that was tested. Include the
-# additional energy required due to losses in energy conversion (energyEfficiency_pct).
-dragPower_kW_TestVehicle_in_mph_metric = function(mph, rho)
-    dragPower_kW_in_mph_metric(mph, rho, basicData_plot$frontalArea, basicData_plot$coefDrag,
+# Power in kW required to overcome drag at a given vehicle speed, air speed, air density, for vehicle that was tested. Include
+# the additional energy required due to losses in energy conversion (energyEfficiency_pct), or if airspeed_mph is negative,
+# the returned NEGATIVE power value (power is generated, not consumed) is REDUCED by the energy capture efficiency
+# (regenEfficiency_pct).
+dragPower_kW_TestVehicle_speeds_in_mph = function(vehicle_mph, airspeed_mph, rho)
+    dragPower_kW_speeds_in_mph(vehicle_mph, airspeed_mph, rho, basicData_plot$frontalArea, basicData_plot$coefDrag,
         basicData_plot$energyEfficiency_pct/100, basicData_plot$regenEfficiency_pct/100)
 
 # Convert a speed (any units) and a road grade (in percent, positive for up, negative for down) into the speed in
@@ -1655,7 +1659,7 @@ idxs_speeds_batteryPlots = which(ind)
 
 DA_ft = DAft_in_ft_degF_inHg(basicData_imperial$elevation, basicData_imperial$temperature, basicData_imperial$barometer)
 rho = rhoMetric_in_DAft(DA_ft)
-kw = dragPower_kW_TestVehicle_in_mph_metric(fineSpeeds_mph, rho)
+kw = dragPower_kW_TestVehicle_speeds_in_mph(fineSpeeds_mph, fineSpeeds_mph, rho)
 baselinePower_fineSpeeds = totalPower_fineSpeeds - kw
 names(baselinePower_fineSpeeds) = as.character(fineSpeeds)
 
@@ -2782,7 +2786,7 @@ plotCT_PvsS_AIR = function(isPDF=FALSE)
         L$pres = ifelse(useMetricInPlots, sprintf("%5.0f", round(pres_inHg*hPa_per_inHg)), sprintf("%5.2f", pres_inHg))
         DA_ft = DAft_in_ft_degF_inHg(elev_ft, temp_degF, pres_inHg)
         rho = rhoMetric_in_DAft(DA_ft)
-        L$power = dragPower_kW_TestVehicle_in_mph_metric(fineSpeeds_mph, rho)
+        L$power = dragPower_kW_TestVehicle_speeds_in_mph(fineSpeeds_mph, fineSpeeds_mph, rho)
         names(L$power) = as.character(fineSpeeds)
         airConditionsAndSpeeds[[cond]] = L
         }
@@ -2871,7 +2875,7 @@ plotCD_EDvsS_WIND = function(isPDF=FALSE)
     for (windSpeed in as.character(windSpeeds))
         {
         airSpeeds_mph = fineSpeeds_mph + windSpeeds_mph[windSpeed]
-        totalPower_kW = baselinePower_fineSpeeds + dragPower_kW_TestVehicle_in_mph_metric(airSpeeds_mph, rho)
+        totalPower_kW = baselinePower_fineSpeeds + dragPower_kW_TestVehicle_speeds_in_mph(fineSpeeds_mph, airSpeeds_mph, rho)
         mtx[windSpeed,] = scale_kWh_to_BatteryPct*totalPower_kW/fineSpeeds
         }
 
@@ -2937,7 +2941,7 @@ plotCT_PvsS_WIND = function(isPDF=FALSE)
     for (windSpeed in as.character(windSpeeds))
         {
         airSpeeds_mph = fineSpeeds_mph + windSpeeds_mph[windSpeed]
-        totalPower_kW = baselinePower_fineSpeeds + dragPower_kW_TestVehicle_in_mph_metric(airSpeeds_mph, rho)
+        totalPower_kW = baselinePower_fineSpeeds + dragPower_kW_TestVehicle_speeds_in_mph(fineSpeeds_mph, airSpeeds_mph, rho)
         battPctPrHr = scale_kWh_to_BatteryPct*totalPower_kW
         battPctPrHr[battPctPrHr > 100] = NA
         mtx[windSpeed,] = battPctPrHr
@@ -3005,7 +3009,7 @@ plotR_DC_DEvsS_WIND = function(isPDF=FALSE)
     for (windSpeed in as.character(windSpeeds))
         {
         airSpeeds_mph = fineSpeeds_mph + windSpeeds_mph[windSpeed]
-        totalPower_kW = baselinePower_fineSpeeds + dragPower_kW_TestVehicle_in_mph_metric(airSpeeds_mph, rho)
+        totalPower_kW = baselinePower_fineSpeeds + dragPower_kW_TestVehicle_speeds_in_mph(fineSpeeds_mph, airSpeeds_mph, rho)
         mtx[windSpeed,] = round(basicData_plot$batteryCapacity_kWh*fineSpeeds/totalPower_kW, 3)
         }
 
