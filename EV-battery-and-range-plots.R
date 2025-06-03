@@ -3,7 +3,7 @@
 # Plot results of tests of an EV's range, plus many plot variations.
 
 # |:---------------------------------------------------------------------------|
-# | Copyright (C) 2024 Ted Toal                                                |
+# | Copyright (C) 2024-2025 Ted Toal                                                |
 # | This program is free software: you can redistribute it and/or modify it    |
 # | under the terms of the GNU General Public License as published by the Free |
 # | Software Foundation, either version 3 of the License, or (at your option)  |
@@ -3689,9 +3689,10 @@ plotHeader = function(cex=1)
         paste0("These plotted curves show, from various perspectives, the battery range of a\n",
         basicData_plot$description), ".\n",
         "\n",
-        "The data for these is obtained by driving the car back and forth on a fairly flat road\n",
+        "The data for these was obtained by driving the car back and forth on a fairly flat road\n",
         "multiple times, at different speeds, and recording the energy usage per distance as shown\n",
         "by the car in watt-hours per unit distance travelled. This data is shown on one of the plots.\n",
+        "Also, certain data was found on the internet, such as vehicle weight.\n",
         "\n",
         "Many plots show curves for a much wider range of speeds than those used in the testing\n",
         "described above. This was done by fitting a 3rd-order polynomial to the power curve obtained\n",
@@ -3704,6 +3705,9 @@ plotHeader = function(cex=1)
         "Some plots take into account battery degradation. This was obtained for the car described\n",
         "above as follows: ", basicData_plot$batteryHealthDesc, "\n",
         "\n",
+        "If you would like curves plotted for another car and can provide the necessary energy data,\n",
+        "contact me and we'll see if we can arrange it.\n",
+        "\n",
         "If you have questions or concerns about any of the plots, you can contact me on various\n",
         "online groups or at ted@tedtoal.net\n",
         "\n",
@@ -3711,13 +3715,14 @@ plotHeader = function(cex=1)
         "   https://github.com/tedtoal/EV-battery-and-range-plots\n",
         "\n",
         "-----------\n",
-        "Copyright (C) 2024  Ted Toal\n",
+        "Copyright (C) 2024-2025  Ted Toal\n",
         "\n",
-        "This program is free software: you can redistribute it and/or modify it under the terms of\n",
-        "the GNU General Public License as published by the Free Software Foundation, either version\n",
-        "3 of the License, or (at your option) any later version.\n",
+        "The program that produces these plots is free software: you can redistribute it and/or\n",
+        "modify it under the terms of the GNU General Public License as published by the Free\n",
+        "Software Foundation, either version 3 of the License, or (at your option) any later\n",
+        "version.\n",
         "\n",
-        "This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;\n",
+        "The program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;\n",
         "without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR\n",
         "PURPOSE. See the GNU General Public License for more details.\n",
         "\n",
