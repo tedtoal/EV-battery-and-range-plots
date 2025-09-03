@@ -102,9 +102,9 @@ slopeToPlotAngleXY = function(x, y, asDegrees=TRUE)
 # If fWiden>0 and <1, two points are chosen by expanding outwards by fWiden*length(x) points
 # in each direction from the two consecutive points that are found. So for example if fWiden
 # is 0.05, then the two points used are -5% and +5% away from the two consecutive non-NA
-# points (but expansion never goes beyond an NA). For mode '0' only, fWiden is used to find
-# the mean slope over a group of fWiden*length(x) adjacent points, and the smallest slope
-# is used.
+# points (but expansion never goes beyond an NA or beyond data limits). For mode '0' only,
+# fWiden is used to find the mean slope over a group of fWiden*length(x) adjacent points,
+# and the smallest slope is used.
 #
 # Return a list with these members:
 #   leftX: x-coordinate of first of the two non-NA points.
