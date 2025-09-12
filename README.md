@@ -1,6 +1,7 @@
 # EV-battery-and-range-plots.R
 R program for plotting EV energy/mile at different speeds, and various related plots
 
+#### V12 release 12-Sep-2025: Add new charging curves plot, adjust another charging curve plot, minor tweaks.
 #### V11 release 3-Sep-2025: Fix bug with metric: if basicData is metric, Wh/km was incorrectly computed on raw measured energy data.
                    Add three new plots for route: Fallon to Ely NV.
 #### V10 release 3-Jun-2025: Adjust first page text slightly.

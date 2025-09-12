@@ -64,7 +64,7 @@
 ################################################################################
 # Release version number of this software, as documented in README.md.
 ################################################################################
-VERSION = "V10"
+VERSION = "V12"
 
 ################################################################################
 # CHANGE THE VALUE OF RSOURCEPATH BELOW TO THE DIRECTORY WHERE THE DOWNLOADED
@@ -120,7 +120,7 @@ rangeOnlyPlots = TRUE
 # Use c(FALSE, TRUE) to produce BOTH types of plots (in separate PDF files).
 metricInPlots = c(FALSE, TRUE)
 
-# Set this TRUE to produce plots with COLORS, FALSE to produce GRAYSCALE plots.
+# Set this TRUE to produce plots with GRAYSCALE colors, FALSE for FULL colors.
 # Use c(FALSE, TRUE) to produce plots using BOTH COLOR AND GRAYSCALE plots (in
 # separate PDF files).
 BWcolors = c(FALSE, TRUE)
@@ -335,7 +335,7 @@ fuelUsageEff = list(speedBreakpoints=c(0, 5, 25, 55, 120), fuelEffBreakpoints=c(
 # obtained from:
 #   https://evkx.net/models/tesla/model_3/model_3_long_range/chargingcurve/
 # Each set of four numbers is a set of these four values:
-#   (SOC percent, Power in kW, Seconds, Total Energy in kWh)
+#   (SOC percent, Power in kW, Cumulative Seconds, Total Energy in kWh)
 ################################################################################
 dfChargeCurve = as.data.frame(matrix(c(
     0, 100, 0,	0,          1, 103, 28, 0.8,        2, 108, 54, 1.5,        3, 108, 81, 2.2,        4, 108, 107, 3.0,
@@ -2096,7 +2096,7 @@ chargeCurve_batteryCapacity_kWh = max(dfChargeCurve$TotalEnergy)
 # Charge curve maximum charging power.
 chargeCurve_maxChargingPower_kW = max(dfChargeCurve$Power)
 
-# Compute charging time in minutes.
+# Compute cumulative charging time, in minutes.
 dfChargeCurve$Minutes = round(dfChargeCurve$Seconds/60, 2)
 
 # Charge curve total charging time in minutes.
@@ -3789,7 +3789,7 @@ plot_RouteEnergy_vsS_WIND = function(isPDF=FALSE)
     ylim_right = range(yat_right)
     yaxp_right = c(ylim_right, ylim_right[2]/50)
 
-    svpar = par(mai=par("mai")+c(0, 0.1, 1, 0.6), mgp=c(2.75, 0.75, 0))
+    svpar = par(mai=par("mai")+c(0, 0.3, 1, 0.8), mgp=c(2.75, 0.75, 0))
 
     plot(NA, type='n', xlim=xlim, xaxp=xaxp, ylim=ylim_left, yaxp=yaxp_left, las=2, main="",
         xlab=tprintf("Speed on flat road (~speed@)"),
@@ -3827,6 +3827,8 @@ plot_RouteEnergy_vsS_WIND = function(isPDF=FALSE)
         else if (windSpeed == windSpeeds[length(windSpeeds)])
             text(L$leftX, L$leftY, "headwinds", srt=L$slope, adj=c(1, -0.5), cex=0.8)
         }
+
+    text(0, 0, basicData_plot$aRoute_desc, adj=c(0, 0))
 
     par(svpar)
     }
@@ -3883,7 +3885,7 @@ plot_RouteEnergy_vsS_PROGRESS = function(isPDF=FALSE)
     ylim_right = range(yat_right)
     yaxp_right = c(ylim_right, ylim_right[2]/50)
 
-    svpar = par(mai=par("mai")+c(0, 0.1, 0.5, 0.6), mgp=c(2.75, 0.75, 0))
+    svpar = par(mai=par("mai")+c(0, 0.3, 0.5, 0.8), mgp=c(2.75, 0.75, 0))
 
     plot(NA, type='n', xlim=xlim, xaxp=xaxp, ylim=ylim_left, yaxp=yaxp_left, las=2, main="",
         xlab=tprintf("Progress along route (~distance@)"),
@@ -3928,66 +3930,11 @@ plot_RouteEnergy_vsS_PROGRESS = function(isPDF=FALSE)
         if (i < ncol(mtx) && y < mtx[N, i+1])
             y = mtx[N, i+1]
         }
-    text(0, ylim_left[2], "Assumes no wind", adj=c(0, 1))
+    text(0, ylim_left[2], tprintf("~aRoute_desc@ (assumes no wind)"), adj=c(0, 1))
     par(svpar)
     }
 
 if (plotToQuartz) plot_RouteEnergy_vsS_PROGRESS()
-
-################################################################################
-# Plot charging time and charging power as a function of SOC (state-of-charge).
-################################################################################
-
-# CT = charging time, CP = charging power, SOC = state-of-charge
-plotCT_CPvsSOC = function(isPDF=FALSE)
-    {
-    xlim = c(0, 100)
-    xaxp = c(xlim, 20)
-    ylim_left = c(0, maxChargeMinutes_charging)
-    yaxp_left = c(ylim_left, nTicksChargeMinutes_charging)
-    ylim_right = c(0, maxChargingPower_kW_charging)
-    yaxp_right = c(ylim_right, nTicksChargingPower_kW_charging)
-
-    svpar = par(mai=par("mai")+c(0, 0.1, 0.2, 0.6), mgp=c(2.5, 0.75, 0))
-
-    plot(NA, type='n', xlim=xlim, xaxp=xaxp, ylim=ylim_left, yaxp=yaxp_left, las=2, yaxt="n", main="", ylab="",
-        xlab=tprintf("State-of-Charge (SOC, %)"))
-    title(tprintf("Time to charge from 0% to 100% state-of-charge"), line=3, cex.main=1.1)
-    mtext(tprintf(
-        "~chargeCurveDescription@",
-        "\n",
-        "~chargeCurveCitation@",
-        "\n",
-        "(Assume charging is done at the maximum possible rate equal to the charging power shown on the right axis)"
-        ),
-        side=3, line=0.25, cex=0.8)
-
-    # Left-side y-axis.
-    labels = pretty.good2(ylim_left, yaxp_left[3])
-    at = labels
-    axis(side=2, at=at, labels=labels, las=2, col.axis=col_charge_time, col=col_charge_time)
-    mtext(tprintf("Charging time (minutes)"), side=2, line=2.5, col=col_charge_time)
-
-    # Right-side y-axis.
-    labels = pretty.good2(ylim_right, yaxp_right[3])
-    at = labels * axisScale_kW_to_chargeTime_minutes
-    axis(side=4, at=at, labels=labels, las=2, col.axis=col_charging_power, col=col_charging_power)
-    mtext(tprintf("Charging power (~power@)"), side=4, line=2.5, col=col_charging_power)
-
-    par(xaxp=xaxp)
-    par(yaxp=yaxp_left)
-    grid(lwd=lwd_grid, lty=lty_grid, col=col_grid)
-
-    lines(dfChargeCurve$SOCpct, dfChargeCurve$Minutes, lwd=2, col=col_charge_time)
-    lines(dfChargeCurve$SOCpct, dfChargeCurve$Power*axisScale_kW_to_chargeTime_minutes, lwd=2, col=col_charging_power)
-
-    legend("top", c("Charging time (left axis)", "Charging power (max. possible, right axis)"),
-        col=c(col_charge_time, col_charging_power), lwd=2, cex=0.8)
-
-    par(svpar)
-    }
-
-if (plotToQuartz) plotCT_CPvsSOC()
 
 ################################################################################
 # Plot state-of-charge and charging power as a function of charging time.
@@ -4007,11 +3954,11 @@ plotSOC_BE_CP_CR_vsCT = function(isPDF=FALSE)
     ylim_right_2 = c(0, maxChargingPower_kW_charging)
     yaxp_right_2 = c(ylim_right_2, nTicksChargingPower_kW_charging)
 
-    svpar = par(mai=par("mai")+c(0, 0.7, 0.2, 1.1), mgp=c(2, 0.75, 0))
+    svpar = par(mai=par("mai")+c(0, 1.0, 0.2, 1.5), mgp=c(2, 0.75, 0))
 
     plot(NA, type='n', xlim=xlim, xaxp=xaxp, ylim=ylim_left_1, yaxp=yaxp_left_1, las=2, yaxt="n", main="", ylab="",
         xlab=tprintf("Charge time (minutes)"))
-    title(tprintf("Battery energy and charging power as time passes when charging from 0% to 100% state-of-charge"), line=3, cex.main=0.9)
+    title(tprintf("Instantaneous power, final SOC from 0% after charging X minutes at max charge power"), line=3, cex.main=1.1)
     mtext(tprintf(
         "~chargeCurveDescription@",
         "\n",
@@ -4025,7 +3972,7 @@ plotSOC_BE_CP_CR_vsCT = function(isPDF=FALSE)
     labels = pretty.good2(ylim_left_1, yaxp_left_1[3])
     at = labels
     axis(side=2, at=at, labels=labels, las=2, cex.axis=0.8, col.axis=col_charge_batteryEnergy, col=col_charge_batteryEnergy)
-    mtext(tprintf("State-of-Charge (SOC, %)"), side=2, line=1.75, cex=0.8, col=col_charge_batteryEnergy)
+    mtext(tprintf("Final State-of-Charge (SOC, %)"), side=2, line=1.75, cex=0.8, col=col_charge_batteryEnergy)
 
     # Left-side y-axis 2.
     # Add light-gray grid extension lines.
@@ -4041,7 +3988,7 @@ plotSOC_BE_CP_CR_vsCT = function(isPDF=FALSE)
     labels = pretty.good2(ylim_right_1, yaxp_right_1[3])
     at = labels * axisScale_battPctPerHr_to_SOCaxis
     axis(side=4, at=at, labels=labels, las=2, cex.axis=0.8, col.axis=col_charging_power, col=col_charging_power)
-    mtext(tprintf("Charge rate (~battery_pwr@)"), side=4, line=1.75, cex=0.8, col=col_charging_power)
+    mtext(tprintf("Instantaneous charge rate (~battery_pwr@)"), side=4, line=1.75, cex=0.8, col=col_charging_power)
 
     # Right-side y-axis 2.
     # Add light-gray grid extension lines.
@@ -4051,7 +3998,7 @@ plotSOC_BE_CP_CR_vsCT = function(isPDF=FALSE)
     labels = pretty.good2(ylim_right_2, yaxp_right_2[3])
     at = labels * axisScale_kW_to_BatteryPct
     axis(side=4, line=4, at=at, labels=labels, las=2, cex.axis=0.8, col.axis=col_charging_power, col=col_charging_power)
-    mtext(tprintf("Charging power (~power@)"), side=4, line=5.75, cex=0.8, col=col_charging_power)
+    mtext(tprintf("Instantaneous charge power (~power@)"), side=4, line=5.75, cex=0.8, col=col_charging_power)
 
     par(xaxp=xaxp)
     par(yaxp=yaxp_left_1)
@@ -4060,13 +4007,154 @@ plotSOC_BE_CP_CR_vsCT = function(isPDF=FALSE)
     lines(dfChargeCurve$Minutes, dfChargeCurve$TotalEnergy*scale_kWh_to_BatteryPct_charging, lwd=2, col=col_charge_batteryEnergy)
     lines(dfChargeCurve$Minutes, dfChargeCurve$Power*axisScale_kW_to_BatteryPct, lwd=2, col=col_charging_power)
 
-    legend("bottom", c("Battery SOC and energy (left axes)", "Charging power and rate (max. possible, right axes)"),
+    legend("right", c("Battery SOC and energy (left axes)", "Charging power and rate (max. possible, right axes)"),
         col=c(col_charge_batteryEnergy, col_charging_power), lwd=2, cex=0.75)
 
     par(svpar)
     }
 
 if (plotToQuartz) plotSOC_BE_CP_CR_vsCT()
+
+################################################################################
+# Plot charging time and charging power as a function of final SOC (state-of-charge).
+################################################################################
+
+# CT = charging time, CP = charging power, SOC = initial state-of-charge
+plotCT_CPvsSOC = function(isPDF=FALSE)
+    {
+    xlim = c(0, 100)
+    xaxp = c(xlim, 20)
+    ylim_left = c(0, maxChargeMinutes_charging)
+    yaxp_left = c(ylim_left, nTicksChargeMinutes_charging)
+    ylim_right = c(0, maxChargingPower_kW_charging)
+    yaxp_right = c(ylim_right, nTicksChargingPower_kW_charging)
+
+    svpar = par(mai=par("mai")+c(0, 0.2, 0.2, 0.7), mgp=c(2.5, 0.75, 0))
+
+    plot(NA, type='n', xlim=xlim, xaxp=xaxp, ylim=ylim_left, yaxp=yaxp_left, las=2, yaxt="n", main="", ylab="",
+        xlab=tprintf("Final State-of-Charge (SOC, %)"))
+    title(tprintf("Instantaneous power, charge time from 0% to final SOC at max charge power"), line=3, cex.main=1.1)
+    mtext(tprintf(
+        "~chargeCurveDescription@",
+        "\n",
+        "~chargeCurveCitation@",
+        "\n",
+        "(Assume charging is done at the maximum possible rate equal to the charging power shown on the right axis)"
+        ),
+        side=3, line=0.25, cex=0.8)
+
+    # Left-side y-axis.
+    labels = pretty.good2(ylim_left, yaxp_left[3])
+    at = labels
+    axis(side=2, at=at, labels=labels, las=2, col.axis=col_charge_time, col=col_charge_time)
+    mtext(tprintf("Charge time from 0% to final SOC (minutes)"), side=2, line=2.5, col=col_charge_time)
+
+    # Right-side y-axis.
+    labels = pretty.good2(ylim_right, yaxp_right[3])
+    at = labels * axisScale_kW_to_chargeTime_minutes
+    axis(side=4, at=at, labels=labels, las=2, col.axis=col_charging_power, col=col_charging_power)
+    mtext(tprintf("Instantaneous charging power (~power@)"), side=4, line=2.5, col=col_charging_power)
+
+    par(xaxp=xaxp)
+    par(yaxp=yaxp_left)
+    grid(lwd=lwd_grid, lty=lty_grid, col=col_grid)
+
+    lines(dfChargeCurve$SOCpct, dfChargeCurve$Minutes, lwd=2, col=col_charge_time)
+    lines(dfChargeCurve$SOCpct, dfChargeCurve$Power*axisScale_kW_to_chargeTime_minutes, lwd=2, col=col_charging_power)
+
+    legend("top",
+        c("Charge time from 0% to final SOC at max. power (left axis)",
+          "Instantaneous charging power at final SOC (right axis)"),
+        col=c(col_charge_time, col_charging_power), lwd=2, cex=0.7)
+
+    par(svpar)
+    }
+
+if (plotToQuartz) plotCT_CPvsSOC()
+
+################################################################################
+# Plot charging time as a function of final SOC (state-of-charge) for various
+# maximum charging powers.
+################################################################################
+
+# CT = charging time, SOC = initial state-of-charge
+plotCTvsSOC = function(isPDF=FALSE)
+    {
+    # Seconds at each SOCpct is deltaSecs = c(0, diff(dfChargeCurve$Seconds))
+    # where the value is actually the number of seconds to reach that SOCpct
+    # from the preceding SOCpct.
+    # We use the dfChargeCurve numbers, modified so that if dfChargeCurve$Power
+    # is greater than the maximum power we are considering (maxP), then power
+    # becomes maxP and deltaSecs is increased accordingly to achieve the same
+    # added power, so it is multiplied by dfChargeCurve$Power/maxP.
+    deltaSecs = c(0, diff(dfChargeCurve$Seconds))
+    power = dfChargeCurve$Power
+
+    # Fill mtxDeltaSecs with deltaSecs values at each SOCpct and each maximum
+    # charging power.
+    maxPowers = c(1.5, 2.0, 3.0, 6.0, 8.0, 10, 12, 50, 250)
+    mtxDeltaSecs = matrix(0, nrow=nrow(dfChargeCurve), ncol=length(maxPowers),
+        dimnames=list(as.character(dfChargeCurve$SOCpct), as.character(maxPowers)))
+
+    for (maxPower in maxPowers)
+        {
+        maxPower_ch = as.character(maxPower)
+        ind = power > maxPower
+        mtxDeltaSecs[, maxPower_ch] = deltaSecs
+        mtxDeltaSecs[ind, maxPower_ch] = deltaSecs[ind] * power[ind] / maxPower
+        }
+    mtxMinutesSince0pct = apply(mtxDeltaSecs, 2, function(V) cumsum(V)/60)
+
+    xlim = c(0, 100)
+    xaxp = c(xlim, 20)
+    xlim[2] = 110
+    yaxp = c(range(pretty.log(mtxMinutesSince0pct, include="X124")), 3)
+
+    svpar = par(mai=par("mai")+c(0, 0.2, 0.2, 0.4), mgp=c(2.5, 0.75, 0))
+
+    plot(NA, type='n', log="y", xlim=xlim, xaxp=xaxp, ylim=yaxp[1:2], yaxp=yaxp, yaxt='n', las=2, main="",
+        xlab=tprintf("Final State-of-Charge (SOC, %)"), ylab="")
+    title(tprintf("Charge time from 0% to final SOC at various maximum charge powers"), line=2.5, cex.main=1.1)
+    mtext(tprintf(
+        "~chargeCurveDescription@",
+        "\n",
+        "~chargeCurveCitation@"
+        ),
+        side=3, line=0.5, cex=0.8)
+
+    # Create y-axis with HH:MM labels.
+    ylabels = c("0:01", "0:02", "0:03", "0:04", "0:06", "0:08", "0:10", "0:15",
+        "0:20", "0:30", "0:45", "1:00", "1:30", "2:00", "3:00", "4:00", "6:00",
+        "8:00", "10:00", "15:00", "24:00", "36:00", "48:00", "60:00")
+    yat_h = as.integer(sub(":..", "", ylabels))
+    yat_m = as.integer(sub(".*:", "", ylabels))
+    yat = 60*yat_h + yat_m
+    axis(side=2, at=yat, labels=FALSE)
+    mtext(ylabels, at=yat, side=2, line=0.5, las=2, cex=0.5)
+    mtext(tprintf("Charge time from 0% to final SOC (HH:MM)"), side=2, line=2, cex=0.8)
+
+    par(xaxp=xaxp)
+    par(yaxp=yaxp)
+    grid(ny=NA, lwd=lwd_grid, lty=lty_grid, col=col_grid)
+    usr = par("usr")
+    for (y in yat)
+        segments(usr[1], y, usr[2], y, lwd=lwd_grid, lty=lty_grid, col=col_grid)
+
+    for (maxPower in maxPowers)
+        {
+        y = mtxMinutesSince0pct[, as.character(maxPower)]
+        lines(dfChargeCurve$SOCpct, y, lwd=1)
+        txt = tprintf("Max chg pwr=", maxPower, "~power@")
+        text(100, y[length(y)], txt, adj=c(-0.025, 0.5), cex=ifelse(isPDF, 0.45, 0.55))
+        }
+
+    text(10, 1, "For time from SOC A% to B%, subtract time at final SOC = A% from time at final SOC = B%",
+        cex=0.7, adj=c(0, 0))
+
+    par(svpar)
+    }
+
+if (plotToQuartz) plotCTvsSOC()
 
 ################################################################################
 ################################################################################
@@ -4111,10 +4199,10 @@ plotHeader = function(cex=1)
         "Many plots show curves for a much wider range of speeds than those used in the testing\n",
         "described above. This was done by fitting a 3rd-order polynomial to the power curve obtained\n",
         "from the testing. From that polynomial power curve, the coefficients of rolling resistance\n",
-        "and drag, and the baseline power. From those, the rolling power and drag power were estimated\n",
-        "for speeds from near 0 to quite fast. The total power is then the sum of the baseline power,\n",
-        "rolling power and drag power. Finally, that total power estimate at different speeds is used\n",
-        "to compute the curves for most of the plots.\n",
+        "and drag and the baseline power were estimated. From those, the rolling power and drag power\n",
+        "were estimated for speeds from near 0 to quite fast. The total power is then the sum of the\n",
+        "baseline power, rolling power and drag power. Finally, that total power estimate at different\n",
+        "speeds is used to compute the curves for most of the plots.\n",
         "\n",
         "Some plots take into account battery degradation. This was obtained for the car described\n",
         "above as follows: ", basicData_plot$batteryHealthDesc, "\n",
@@ -4207,8 +4295,10 @@ if (rangeEnergyPlots)
     plot_RouteEnergy_vsS_WIND(TRUE)
     plot_RouteEnergy_vsS_PROGRESS(TRUE)
     par(svpar)
-    plotCT_CPvsSOC(TRUE)
     plotSOC_BE_CP_CR_vsCT(TRUE)
+    par(svpar)
+    plotCT_CPvsSOC(TRUE)
+    plotCTvsSOC(TRUE)
     dev.off()
     }
 

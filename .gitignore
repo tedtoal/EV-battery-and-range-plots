@@ -48,9 +48,6 @@ po/*~
 # RStudio Connect folder
 rsconnect/
 
-# PDF files
-*.pdf
-
 # PNG files
 *.png
 

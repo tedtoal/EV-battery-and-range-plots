@@ -554,13 +554,19 @@ plotPvalueBrackets = function(x.pos.left, y.pos.left, x.pos.right, y.pos.right,
 #   makeGood: TRUE to convert 'rng' to range(pretty.good(rng)) before computing result.
 #
 # Returns:
-#   If makeGood is TRUE, a 3-element vector suitable for use as par(xaxp) or par(yaxp).
-#   If makeGood is FALSE, the computed number of intervals is returned.
+#   If makeGood is TRUE, a 3-element vector of c(range[1], range[2], # intervals) is
+#   returned (use for xaxp or yaxp if not a log axis, but if a log axis, the third
+#   element must be set as needed. If makeGood is FALSE, the computed number of
+#   intervals is returned.
 #######################################################################################
 makeMultiple10of_1_2_5 = function(rng, tgtN, makeGood=FALSE)
     {
     if (makeGood)
         rng = range(pretty.good(rng))
+    if (rng[1] <= 0)
+        rng[1] = min(rng)
+    if (rng[1] <= 0)
+        rng[1] = 1
     if (rng[1] == rng[2])
         rng[2] = rng[1] + 1
     span = diff(rng)
@@ -1669,12 +1675,12 @@ pretty.good2 = function(x, n=5, ...)
 # Arguments:
 #   x: an object coercible to numeric().  NA values and values <= 0 are ignored.
 #       The limits are set to include these values.
-#   include: one of the values "X1", "X12", "X15", or "X125" indicating inclusion
-#       of powers of 10 only (X1), 1* and 2* powers of 10 (X12), 1* and 5* (X15),
-#       or 1*, 2*, and 5* (X125).
+#   include: one of the values "X1", "X12", "X15", "X125", or "X124" indicating
+#       inclusion of powers of 10 only (X1), 1 and 2 times powers of 10 (X12),
+#       1 and 5 (X15), 1, 2, and 5 (X125), or 1, 2, and 4.
 #   P10.StartEnd: TRUE if sequence must start and end with a power of 10, FALSE
-#       if it may start or end with 2* or 5* a power of 10 (depending of course
-#       on 'include').
+#       if it may start or end with 2, 4, or 5 times a power of 10 (depending of
+#       course on 'include').
 #
 # Returns: the computed sequence.
 #
@@ -1692,42 +1698,56 @@ pretty.log = function(x, include="X125", P10.StartEnd=FALSE)
     x1 = log10(r[1])
     x1 = myIfElse(x1 < 0, as.integer(x1)-1, as.integer(x1))
     x1 = 10^x1
-    # Raise first sequence element by *5 if possible, else *2 if possible.
+    # Raise first sequence element by *5 if possible, else *4 if possible, else *2 if possible.
     cur = "atX1"
-    if (!P10.StartEnd && (include %in% c("X15", "X125")) && (x1*5 <= r[1]))
+    if (!P10.StartEnd)
         {
-        x1 = x1*5
-        cur = "atX5"
+        if (include %in% c("X15", "X125") && x1*5 <= r[1])
+            {
+            x1 = x1*5
+            cur = "atX5"
+            }
+        else if (include == "X124" && x1*4 <= r[1])
+            {
+            x1 = x1*4
+            cur = "atX4"
+            }
+        else if (include %in% c("X12", "X125") && x1*2 <= r[1])
+            {
+            x1 = x1*2
+            cur = "atX2"
+            }
         }
-    else if (!P10.StartEnd && (include %in% c("X12", "X125")) && (x1*2 <= r[1]))
-        {
-        x1 = x1*2
-        cur = "atX2"
-        }
-
     # Compute last element of the sequence.
     x2 = log10(r[2])
     x2 = myIfElse(x2 < 0, as.integer(x2), as.integer(x2)+1)
     x2 = 10^x2
-    # Lower last sequence element by *2/10 if possible, else *5/10 if possible.
-    if (!P10.StartEnd && (include %in% c("X12", "X125")) && (x2*2/10 >= r[2]))
-        x2 = x2*2/10
-    else if (!P10.StartEnd && (include %in% c("X15", "X125")) && (x2*5/10 >= r[2]))
-        x2 = x2*5/10
+    # Lower last sequence element by *2/10 if possible, else *4/10 if possible, else *5/10 if possible.
+    if (!P10.StartEnd)
+        {
+        if (include %in% c("X12", "X125") && x2*2/10 >= r[2])
+            x2 = x2*2/10
+        else if (include == "X124" && x2*4/10 >= r[2])
+            x2 = x2*4/10
+        else if (include %in% c("X15", "X125") && x2*5/10 >= r[2])
+            x2 = x2*5/10
+        }
 
     # Value to assign to 'cur' when moving from one sequence element to the next,
     # depending on value of 'include' argument as well as value of 'cur'.
     nextCur = list(X1=c(atX1="atX1"),
                    X12=c(atX1="atX2", atX2="atX1"),
                    X15=c(atX1="atX5", atX5="atX1"),
-                   X125=c(atX1="atX2", atX2="atX5", atX5="atX1"))
+                   X125=c(atX1="atX2", atX2="atX5", atX5="atX1"),
+                   X124=c(atX1="atX2", atX2="atX4", atX4="atX1"))
 
     # Value to multiply current sequence member by, to get next sequence member,
     # depending on value of 'include' argument as well as value of 'cur'.
     multFactor = list(X1=c(atX1=10),
                       X12=c(atX1=2, atX2=5),
                       X15=c(atX1=5, atX5=2),
-                      X125=c(atX1=2, atX2=5/2, atX5=2))
+                      X125=c(atX1=2, atX2=5/2, atX5=2),
+                      X124=c(atX1=2, atX2=2, atX4=10/4))
 
     # Compute the full sequence.
     seq = x1
